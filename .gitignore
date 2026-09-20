@@ -1,0 +1,16 @@
+node_modules/
+dist/
+bin/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+docker-compose.override.yml
+/data/out/
+/tests/e2e/.sessions/
+/tests/e2e/test-results/
+/tests/e2e/playwright-report/
+/otel-out/
+*.log
+.DS_Store
