@@ -14,3 +14,4 @@ docker-compose.override.yml
 /otel-out/
 *.log
 .DS_Store
+/.scenario-state
