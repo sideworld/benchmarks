@@ -27,4 +27,6 @@ for c in $MONGOS; do docker exec "$c" mongo --quiet --eval 'assert(db.fsyncUnloc
 t1=$(date +%s.%N)
 f() { echo "$1 $2" | awk '{printf "%.2f", $2-$1}'; }
 echo "t_quiesce=$(f "$t0" "$t_frozen")s  t_snapshot_25=$(f "$t_frozen" "$t_snap")s  t_thaw=$(f "$t_snap" "$t1")s  total_frozen=$(f "$t0" "$t1")s"
-echo "== snapshots"; zfs list -H -o name,used,referenced -t snapshot | grep "@$NAME$" | awk '{u+=0} {print}' | head -3; echo "   ... $(zfs list -H -o name -t snapshot | grep -c "@$NAME$") snapshots @$NAME"
+# No `| head` here: under pipefail a `head` that exits first kills the writer with SIGPIPE
+# and this script returns 141 after a perfectly good snapshot. onboard.sh then stops silently.
+echo "== snapshots"; zfs list -H -o name,used,referenced -t snapshot | awk -v n="@$NAME" 'index($1, n) { c++; if (c <= 3) print "   " $0 } END { print "   ... " c+0 " snapshots " n }'

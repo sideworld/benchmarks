@@ -7,7 +7,11 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TT=${TT_DIR:-/tank/work/trainticket}; TAG=${TT_TAG:-v0.2.0}
-step() { printf '\n\033[1;37m[%s] %s\033[0m\n' "$(date -u +%T)" "$*"; }
+LOG=${LOG:-$(cd "$HERE/../.." && pwd)/vm/out/tt-onboard.log}; mkdir -p "$(dirname "$LOG")"
+exec > >(tee -a "$LOG") 2>&1
+CUR=start
+step() { CUR=$*; printf '\n\033[1;37m[%s] %s\033[0m\n' "$(date -u +%T)" "$*"; }
+trap 'rc=$?; printf "\n\033[1;31mFAILED (exit %s) during: %s -- see %s\033[0m\n" "$rc" "$CUR" "$LOG"' ERR
 step "clone FudanSELab/train-ticket @ $TAG -> $TT"
 [ -d "$TT/.git" ] || git clone -q --branch "$TAG" --depth 1 https://github.com/FudanSELab/train-ticket.git "$TT"
 step "25 empty datasets";                       "$HERE/reset-state.sh"

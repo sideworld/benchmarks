@@ -28,6 +28,8 @@ drifted ~2 h ahead of the clock; corrected against the recorded timestamps.)
 | 9 | 06:12–06:28 | `vm/mkfork-generic.{sh,py}`, TT fork map + runner; fork 1, fork 2, ceiling, unfork | 0.27 | fork-compose | |
 | 10 | 06:28–06:31 | Firecracker generalisation: `build-rootfs-generic.sh` + `guest-generic/`, env knobs on 8 vm scripts, TT data zvol, `vm.sh`; rootfs build (61 s) | 0.05 | fork-vm | edits were mostly pre-written while forks ran |
 | 14 | 07:02–07:12 | recovery evidence, teardown, host verification, specimen `vm/boot.sh 1` proof, write-up | 0.17 | writeup | |
+| 15 | 11:41–12:00 | **repeat onboarding** from a clean teardown: 19 m 10 s, six gaps recorded; gap-closing scripts after | 0.45 | measurement | |
+| 16 | 12:09–12:50 | **third run**: attempt 1 found the SIGPIPE gap (fixed), attempt 2 from a full teardown with images purged: 14 m 42 s, zero decisions; restore variance: 10 warm restores + 2 cold/pre-fault pairs; Compose fork; write-up | 0.7 | measurement | |
 | 13 | 06:42–07:02 | six restore forks with PSS series + isolation; image swap in fork 1 | 0.33 | fork-vm | |
 | 12 | 06:34–06:42 | native down; VM boot (UI 17.2 s), in-guest probe, snapshot (19.9 s frozen); PR image built; fork measure script | 0.13 | fork-vm | |
 | 11 | 06:31–06:34 | bake in a 24 GiB guest (UI 50.4 s, all healthy 131.2 s) | 0.05 | fork-vm | first try |
@@ -441,3 +443,80 @@ that is execution time — two 83–85 s boots, a 96-second guest boot, a 103 s 
 and two ~2-minute search probes — with two hand-done steps totalling under a minute. What the first
 run spent its hour on — finding out which version was deployable, what to pin, what "healthy" means,
 what the documents look like — is now files.
+
+## Third run — the prediction, measured
+
+The repeat section ended with "a third run would have nothing to remember". Tested: full teardown again
+(datasets, zvol, `vm/out/tt-*`, snapshot dir, checkouts — **and the 45 images this time**), then
+`onboard.sh` alone, then `vm-fork-measure.sh ttbase 1 --probe`, then `pr-swap.sh 1`. No reading, no
+recall. Time-box 30 min.
+
+**The first attempt found a seventh gap, in the tooling itself.** `onboard.sh` stopped silently right
+after the `@tt-base` snapshot. `snapshot.sh`'s last line piped its listing through `| head -3` under
+`set -o pipefail`; when `head` exits first, `awk` dies of SIGPIPE, the script returns 141 *after a
+successful snapshot*, and the caller's `set -e` stops — with nothing printed, because my grep filter had
+swallowed the step markers. Timing-dependent, which is why the first three runs got away with it. Fixed
+in `snapshot.sh` (no `head`), and `onboard.sh` now logs everything to `vm/out/tt-onboard.log` and
+prints `FAILED (exit n) during: <step>` on error. A better place to find it than in front of a design
+partner, as intended.
+
+**Second attempt, from a clean teardown, images purged: 14 m 42 s, zero decisions.**
+
+| milestone | first run | repeat (2nd) | **third run** |
+|---|---|---|---|
+| native boot to 68/68 (incl. pulling 45 images this time) | 28 m | 1 m 26 s | **2 m 05 s** (pull ≈ 40 s of it) |
+| 1M orders generated + checked | 16 m | +3 m 27 s | +3 m 50 s |
+| `@tt-base` snapshot | — | +3 m 35 s | +3 m 56 s |
+| data zvol, rootfs (61 s), native down, bake (guest ready 125 s) | ad hoc | +11 m 39 s | +7 m 35 s |
+| VM boot: UI 22.2 s, **all 68 healthy at 96.5 s** | | +13 m 30 s | +8 m 43 s |
+| VM snapshot (20.3 s frozen, 4.5 GB allocated) | | +13 m 53 s | **+9 m 46 s** ← `onboard.sh` exits here |
+| **VM fork serving** (`t_restore_to_api_response` 18.2 s, cold — see below) | 90 min | 14 m 30 s | **+10 m 04 s** |
+| + 120 s PSS series (3.6 GB) + in-fork search (293 trips, 132 s) | | | +14 m 34 s |
+| **PR → changed system serving** | | 19 m 10 s (9.0 s) | **14 m 42 s (7.5 s)** |
+| Compose fork, run separately afterwards (not in `onboard.sh`) | 71 min | 6 m 51 s | 91.3 s to healthy, 15.3 GB, isolated; 206 s incl. its search probe |
+
+Decisions made during the run: **none**. Things recalled: **none**. The one remaining choice a cold
+operator faces is which of the two follow-up commands to run after `onboard.sh` finishes, and it prints
+them.
+
+The absolute time went *down* despite re-pulling the images because the bake and boot no longer wait on
+a 120 s ready poll that times out (`app-up` writes its ready file now), and because the second run's
+hand-done zvol and PR steps are scripts. Of the 14 m 42 s, everything is execution: a 2-minute native
+boot, a 97 s generator, a 60 s rootfs build, a 147 s bake, a 96 s guest boot, a 20 s snapshot, an 18 s
+restore, and then 4½ minutes of deliberately slow measurement (the PSS series and a 132 s search at 1 M
+orders). The onboarding itself — clone to a snapshotted VM — is **9 m 46 s**.
+
+### Restore variance, measured
+
+The first restore after each fresh snapshot was 9.9 s, 13.9 s, 18.2 s across the three runs, and every
+later restore 5.5–6.4 s. Ten consecutive restores of the same snapshot on this box:
+
+| | p50 | p95 | min | max |
+|---|---|---|---|---|
+| 5 restores after `posix_fadvise(DONTNEED)` on the memory file | 5.3 s | 5.4 s | 5.1 s | 5.4 s |
+| 5 restores after `cat mem > /dev/null` (39 s each) | 5.4 s | 5.5 s | 5.0 s | 5.5 s |
+
+Identical — because on ZFS `posix_fadvise` is a no-op and `read()` warms the ARC, not the page cache
+that a `MAP_PRIVATE` mapping faults from. Neither changed anything; all ten were warm. So the cold case
+was reproduced directly, twice:
+
+| | immediate restore of a *fresh* snapshot | same, after pre-faulting the memory file through `mmap` |
+|---|---|---|
+| round A | **16.5 s** | **5.5 s** |
+| round B | **13.4 s** | **5.5 s** |
+
+**Quote 5.4 s p50 / 5.5 s p95 as the restore time, and 13–18 s for the first restore of a snapshot
+nobody has faulted yet.** The spread was never variance in the restore; it was one cold page cache per
+snapshot. Engine requirement: after `PUT /snapshot/create`, pre-fault the memory file **through a
+mapping**, not with `read()`, and only over its allocated extents (`SEEK_DATA`/`SEEK_HOLE`) — the naive
+walk of all 24 GiB took 64 s, of which ~20 GB were holes; the 4.7 GB that matter would take seconds.
+Alternatively keep memory files on a filesystem whose read path and mmap share one page cache. Either
+way the first fork then costs the same as the tenth.
+
+### Verdict, revised
+
+**The prediction held with one asterisk: the third run needed nothing from memory, and it found one
+bug in the tooling (a SIGPIPE that turned a successful snapshot into a silent stop).** Clone to a
+snapshotted VM in 9 m 46 s, to a fork serving a changed build in 14 m 42 s, images re-pulled, zero
+decisions. The platform absorbs all of the first run's 71 minutes that were thinking; what remains is
+boots and a generator — and the boots are what the engine exists to remove.
