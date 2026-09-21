@@ -28,7 +28,7 @@ could still be open source with a clean deployment; L4 could be us driving it; L
 | **Application changes** | 0 | **0** | ? |
 | **Persistent technologies** | 4 × PostgreSQL 16 (database-per-tenant and `tenant_id`-column tenancy), Kafka (KRaft) | 24 × MongoDB 4.4, MySQL 5.7, Redis (no volume upstream: stateless) | ? |
 | **Data scale** | 10,000,000 conversations, 49,868,338 messages, 96.4M rows; 19.17 GB in Postgres, 13.2 GB on ZFS (1.60×) | 1,000,004 orders, 809,242 × 2 payments, 10,002 users, 1,010 trips; 607 MiB on ZFS (1.13×) | ? |
-| **Cold ready** | native `compose up --wait` **31.9 s**; microVM cold boot **26.2 s** | native **81.9 s** (68/68 healthy, seeding included); microVM **96.4 s** all 68 healthy (UI answers at 16–22 s) | ? |
+| **Cold ready** | native `compose up --wait` **31.9 s**; microVM cold boot **27.2 s** (baked rootfs, Phase 1 measurement in `vm/README.md`; not re-measured) | native **81.9 s** (68/68 healthy, seeding included); microVM **96.4 s** all 68 healthy (UI answers at 16–22 s) | ? |
 | **Warm fork ready** | **2.4 s** (`t_load` 25 ms) | **5.4 s p50 / 5.5 s p95** steady-state. The first restore of a fresh snapshot is 13–18 s without pre-faulting the memory file through a mapping; 5.5 s with it | ? |
 | **PR → changed system serving** | — (not measured) | **9.0–10.8 s** (runs 1–2, by hand; 4.8 s of it inside the fork); 7.5 s scripted (`pr-swap.sh`, run 3) | ? |
 | **PSS per idle fork** | **473 MB** @120 s (6 GiB guest; 449 MB in a 2 GiB guest); marginal fork ~400–500 MB from the third on; 2–5× once the fork does work | **3.0–3.6 GB** @120 s (24 GiB guest); ~5 GB after serving a search | ? |

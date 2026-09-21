@@ -25,7 +25,7 @@ memory-file mmap plus a `zfs clone`.
 |-------------|------:|
 | cold `docker compose up --wait` on metal, empty databases (experiment 1) | 31.9 s |
 | Compose + ZFS fork of the 10M baseline on metal (experiment 1) | 43.5 s |
-| microVM cold boot to healthy (`vm/boot.sh`) | 26.2 s |
+| microVM cold boot to healthy (`vm/boot.sh`, baked rootfs; Phase 1 measurement, `vm/README.md`) | 27.2 s |
 | **`t_load`** — `/snapshot/load` + 2 × `PATCH /drives` + resume | **0.025 s** |
 | **`t_restore_to_api_response`** — firecracker exec to first HTTP 200 | **2.4 s** |
 | `t_quiesce_pause` — `/data` frozen to thawed | 5.8 s |
@@ -45,8 +45,8 @@ Per fork, from `vm/out/measure-base.csv`:
 | 4 | 30480 | 0.031 s | 2.375 s | 2.192 s | 441 | 707 |
 | 5 | 30580 | 0.029 s | 2.362 s | 0.744 s | 378 | 629 |
 
-**A fork is 18× faster than a Compose+ZFS fork of the same data** (2.4 s against 43.5 s) and 13× faster
-than a cold boot of the same microVM. `t_load` is 25 ms; everything else is the guest faulting its
+**A fork is 18× faster than a Compose+ZFS fork of the same data** (2.4 s against 43.5 s) and 11× faster
+than a cold boot of the same microVM (27.2 s). `t_load` is 25 ms; everything else is the guest faulting its
 working set back in and the gateway answering. The per-fork PSS falls from 514 MB to 378 MB as later
 forks find more of the memory file already resident in the host page cache.
 
