@@ -1,0 +1,26 @@
+# TrainTicket: service  container-path  subdir-on-the-data-zvol (built from tank/tt-*@tt-base)
+ts-auth-mongo              /data/db        auth-mongo
+ts-user-mongo              /data/db        user-mongo
+ts-account-mongo           /data/db        account-mongo
+ts-route-mongo             /data/db        route-mongo
+ts-contacts-mongo          /data/db        contacts-mongo
+ts-order-mongo             /data/db        order-mongo
+ts-order-other-mongo       /data/db        order-other-mongo
+ts-config-mongo            /data/db        config-mongo
+ts-station-mongo           /data/db        station-mongo
+ts-train-mongo             /data/db        train-mongo
+ts-travel-mongo            /data/db        travel-mongo
+ts-travel2-mongo           /data/db        travel2-mongo
+ts-price-mongo             /data/db        price-mongo
+ts-security-mongo          /data/db        security-mongo
+ts-inside-payment-mongo    /data/db        inside-payment-mongo
+ts-payment-mongo           /data/db        payment-mongo
+ts-rebook-mongo            /data/db        rebook-mongo
+ts-assurance-mongo         /data/db        assurance-mongo
+ts-ticket-office-mongo     /data/db        ticket-office-mongo
+ts-news-mongo              /data/db        news-mongo
+ts-voucher-mysql           /var/lib/mysql  voucher-mysql
+ts-food-map-mongo          /data/db        food-map-mongo
+ts-consign-mongo           /data/db        consign-mongo
+ts-consign-price-mongo     /data/db        consign-price-mongo
+ts-food-mongo              /data/db        food-mongo
