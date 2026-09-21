@@ -141,3 +141,65 @@ scenario branch was checked out.**
   A memory-snapshot engine that forks processes the way ZFS forks blocks plausibly brings a fork from
   ~1.5 GB / 43 s to ~200 MB / ~1 s.
 - **Worst-case density today is ~25–30 forks per 64 GB box**, with the ARC capped and no page sharing.
+
+---
+
+# Experiment 2: clean snapshot
+
+Same box, same baseline data, same day. Experiment 1 concluded that the ~12 s and ~800 MB each fork
+paid at boot came from snapshotting a running Postgres. This experiment tests that by snapshotting
+after a clean shutdown.
+
+## Method
+
+| step | how |
+|------|-----|
+| 1. quiesce | on the baseline project: `docker compose stop gateway-db conversations-db assignments-db billing-db kafka` (clean shutdown: Postgres writes its shutdown checkpoint, Kafka flushes and closes its logs) |
+| 2. snapshot | `zfs snapshot -r tank@baseline-10m-clean` |
+| 3. resume | restart the stopped services |
+| 4. fork | `SNAP=baseline-10m-clean ./mkfork.sh 1` — `mkfork.sh` now takes `SNAP=<snapshot>` (default `baseline-10m`) to select the clone origin — then `docker compose -p fork1 … up --wait` |
+
+## Results, fork1 from the clean snapshot
+
+| measurement | hot snapshot (`baseline-10m`) | clean snapshot (`baseline-10m-clean`) |
+|-------------|------------------------------:|--------------------------------------:|
+| boot to healthy | 43.5 s | **31.9 s** (baseline cold boot on empty DBs: 31.9 s) |
+| `assignments-db` recovery | redo 3.44 s + end-of-recovery checkpoint of 32,760 buffers (100%) | **zero recovery lines** |
+| CoW delta after boot, total | ~800 MB | **~2 MB** (2.9 MB summed, below) |
+| fork RAM (`memory.current`) | 1,438–1,697 MB | **941 MB** |
+
+CoW delta after boot, per dataset:
+
+| dataset | hot snapshot | clean snapshot |
+|---------|-------------:|---------------:|
+| pg-assignments | 414 MB | 384 KB |
+| pg-billing | 387 MB | 388 KB |
+| pg-conversations | 8.3 MB | 740 KB |
+| pg-gateway | 280 KB | 332 KB |
+| kafka | 1 MB | 1.1 MB |
+
+Fork RAM, 941 MB:
+
+| container | MB | share |
+|-----------|---:|------:|
+| kafka | 404 | |
+| idp | 360 | |
+| **JVMs together** | **764** | **81%** |
+| gateway, billing, notifications | ~50 each | |
+| everything else (four Postgres, otel-collector, frontend, Go services) | remainder | |
+
+The Postgres containers no longer hold hundreds of MB each: without crash recovery and its full
+end-of-recovery checkpoint they never pull the buffer pool in at boot, which is where the ~500–750 MB
+difference from experiment 1 went.
+
+## Conclusions
+
+- **The 12 s and ~800 MB attributed to recovery are eliminated by quiescing before the snapshot.** The
+  baseline job must stop (or at least `CHECKPOINT`) the stateful services before capture.
+- **The engine-less fork cost is 31.9 s / ~2 MB / 941 MB.** The 31.9 s is the software's own boot —
+  identical to a cold boot on empty databases, so state adds nothing — and ~80% of the RAM is JVM pages
+  identical across forks.
+- **The engine's target is therefore roughly ~1 s and ~200 MB per fork**: skip the boot by restoring
+  memory, and share the JVM pages.
+
+Note: `VACUUM ANALYZE` was **not** run before this snapshot. A vacuumed `baseline-10m-clean2` follows.
