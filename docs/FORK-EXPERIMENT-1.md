@@ -203,3 +203,92 @@ difference from experiment 1 went.
   memory, and share the JVM pages.
 
 Note: `VACUUM ANALYZE` was **not** run before this snapshot. A vacuumed `baseline-10m-clean2` follows.
+
+---
+
+# Experiment 3: vacuumed clean snapshot and suite-run delta
+
+## Method
+
+| step | how |
+|------|-----|
+| 1. vacuum | `VACUUM ANALYZE` on every database of the baseline |
+| 2. quiesce | clean stop of the four Postgres services and Kafka, as in experiment 2 |
+| 3. snapshot | `zfs snapshot -r tank@baseline-10m-clean2` |
+| 4. fork | `SNAP=baseline-10m-clean2 ./mkfork.sh 1`, boot with `docker compose -p fork1 … up --wait` |
+| 5. exercise | `GATEWAY=http://localhost:19080 make test-api` against the fork (fork1 publishes the gateway on 18080 + 1×1000) |
+
+## Results, fork1 from `baseline-10m-clean2`
+
+| measurement | value |
+|-------------|-------|
+| boot to healthy | **31.9 s** |
+| RAM idle (`memory.current`) | 935 MB |
+| RAM after the suite | 1,509 MB (Postgres buffers warmed) |
+| `make test-api` | **23 pass / 9 fail / 1 skip**, shards 18–49 s |
+| previous run (unvacuumed hot-snapshot fork, experiment 1) | 14 pass / 18 fail / 1 skip, with 10 s timeouts |
+
+The remaining 9 failures are the create-path scan from experiment 1: `POST /v1/conversations` and
+`/assign` re-read the conversation's messages through the missing `messages(conversation_id, created_at)`
+index. Vacuuming (visibility map, fresh statistics, no hint-bit writes on first read) halved the
+failures but cannot fix a sequential scan of a 3.6 GB heap; the suite that takes ~2 s on the 200-row
+seed takes 18–49 s per shard here.
+
+Copy-on-write delta per dataset:
+
+| dataset | after boot | after `make test-api` |
+|---------|-----------:|----------------------:|
+| kafka | 1.16 MB | 1.73 MB |
+| pg-assignments | 376 KB | 976 KB |
+| pg-billing | 364 KB | 1.02 MB |
+| pg-conversations | 1.10 MB | 12.1 MB |
+| pg-gateway | 332 KB | 540 KB |
+| **total** | **~3.3 MB** | **~16 MB** |
+
+A full API suite run against a fork of 13.2 GB of state costs ~16 MB of private blocks. On the
+unvacuumed hot-snapshot fork of experiment 1 the same suite grew `pg-conversations` alone to 200 MB:
+most of that was hint-bit and visibility writes on pages the suite merely *read*, which a vacuumed
+baseline has already paid for once, before the snapshot.
+
+## Note: `/dev/shm` and parallel VACUUM
+
+Parallel `VACUUM` failed on `conv_acme` and `assignments` with
+
+```
+could not resize shared memory segment … No space left on device
+```
+
+That is Docker's default 64 MB `/dev/shm`, not the disk: Postgres allocates its parallel-worker
+dynamic shared memory there. Fixed in `docker-compose.yml`: `shm_size: 1g` on the four Postgres
+services (set once on the shared `x-postgres` anchor, so the ZFS and per-fork overrides inherit it).
+The same limit would bite any parallel query on the 10M baseline, not only VACUUM.
+
+---
+
+# Summary: the engine-less fork
+
+What one fork of the 10M-row baseline (13.2 GB on disk) costs today, with ZFS clones and plain
+`docker compose up`, by snapshot quality:
+
+| | exp. 1: hot snapshot | exp. 2: clean stop | exp. 3: vacuumed + clean stop |
+|---|---:|---:|---:|
+| snapshot | `baseline-10m` | `baseline-10m-clean` | `baseline-10m-clean2` |
+| clone, five datasets | 0.097 s, 8 KB each | same | same |
+| boot to healthy | 43.5 s | 31.9 s | **31.9 s** |
+| crash recovery at boot | redo 3.44 s + 100% checkpoint | none | none |
+| CoW delta after boot | ~800 MB | ~2–3 MB | **~3.3 MB** |
+| CoW delta after `make test-api` | `pg-conversations` alone 200 MB | — | **~16 MB total** |
+| RAM idle | 1,438–1,697 MB | 941 MB | **935 MB** |
+| RAM after the suite | 1,799 MB | — | 1,509 MB |
+| `make test-api` (pass / fail / skip) | 14 / 18 / 1 | — | 23 / 9 / 1 |
+
+| engine-less fork, best case (exp. 3) | cost | what it is |
+|---|---:|---|
+| state | 0.097 s, ~3 MB at boot, ~16 MB per suite run | solved and free |
+| time | 31.9 s | the software's own boot: JVM start-up, `depends_on` chains, healthcheck intervals — identical to a cold boot on empty databases |
+| memory | 935 MB idle, ~1.5 GB warmed | ~80% JVM pages identical across forks; the rest of the growth is Postgres buffers of identical baseline pages |
+| engine target | ~1 s, ~200 MB | restore memory instead of booting; share the identical pages |
+
+Baseline job requirements that fell out of the three experiments: `VACUUM ANALYZE`, then a clean stop
+(or at minimum `CHECKPOINT` + Kafka flush) of the stateful services, then `zfs snapshot -r`; Postgres
+containers need `shm_size` well above Docker's 64 MB default.
