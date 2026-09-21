@@ -19,6 +19,7 @@ run_naive "CREATE INDEX without CONCURRENTLY (strong_migrations: blocks writes o
   "CREATE INDEX index_statuses_on_language_and_id ON statuses (language, id DESC)"
 run_naive "ALTER COLUMN language SET NOT NULL (strong_migrations: full-table scan under ACCESS EXCLUSIVE)" \
   "ALTER TABLE statuses ALTER COLUMN language SET NOT NULL"
+if [ "${MIGRATION_SAFE:-1}" = 1 ]; then   # MIGRATION_SAFE=0: only the naive half (a demo wants the lock times, not the 3-min safe path)
 echo "== safe: CREATE INDEX CONCURRENTLY (writes continue; cannot run in a transaction, so built then dropped)"
 ( sleep 3; echo "   lock on statuses while it runs: $(locks)" ) &
 t0=$(date +%s.%N); psql -c "CREATE INDEX CONCURRENTLY index_statuses_on_language_and_id ON statuses (language, id DESC)"; wait
@@ -30,5 +31,6 @@ echo "== safe: CHECK (language IS NOT NULL) NOT VALID, then VALIDATE (SHARE UPDA
 t0=$(date +%s.%N); psql -c "ALTER TABLE statuses ADD CONSTRAINT statuses_language_null CHECK (language IS NOT NULL) NOT VALID"; psql -c "ALTER TABLE statuses VALIDATE CONSTRAINT statuses_language_null"; wait
 echo "   add+validate: $(echo "$t0 $(date +%s.%N)" | awk '{printf "%.1f", $2-$1}')s"
 t0=$(date +%s.%N); psql -c "ALTER TABLE statuses ALTER COLUMN language SET NOT NULL; ALTER TABLE statuses DROP CONSTRAINT statuses_language_null; ALTER TABLE statuses ALTER COLUMN language DROP NOT NULL"; echo "   set not null (no scan) + undo: $(echo "$t0 $(date +%s.%N)" | awk '{printf "%.1f", $2-$1}')s"
+fi
 "$HERE/md.sh" start web sidekiq streaming >/dev/null 2>&1
 psql -c "select indexname from pg_indexes where indexname='index_statuses_on_language_and_id'" | grep -q . && echo "LEFTOVER INDEX" || echo "== clean: nothing left behind"
