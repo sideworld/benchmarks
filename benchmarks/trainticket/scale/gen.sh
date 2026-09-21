@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Run the generator against the live tt project and report throughput and on-disk cost.
 #   benchmarks/trainticket/scale/gen.sh [N_ORDERS] [N_USERS] [N_TRIPS]
+# Follows the generic bulk-load profile (benchmarks/lib/BULK-LOAD.md): Mongo has no RI triggers to
+# disable; the validate-after step is check.js (orders <-> payments <-> users coherence) below.
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 N_ORDERS=${1:-1000000}; N_USERS=${2:-10000}; N_TRIPS=${3:-1000}

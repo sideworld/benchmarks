@@ -1,0 +1,7 @@
+# minted at runtime (admin/heavyfollower OAuth tokens), generated per run
+.token
+.token-heavy
+.slow.log
+fork.map
+compose/docker-compose.md-f*.yml
+compose/docker-compose.md-alt.yml

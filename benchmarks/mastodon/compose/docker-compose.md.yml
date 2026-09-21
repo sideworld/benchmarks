@@ -1,0 +1,103 @@
+# Compose override for Mastodon's own docker-compose.yml. Nothing in Mastodon changes.
+#   - state on ZFS: the compose binds ./postgres14, ./redis, ./public/system; these point them
+#     at one dataset each so they can be snapshotted and cloned.
+#   - ports: 3000 and 4000 are taken on this host (the specimen's frontend and a fork of it);
+#     MD_BIND/MD_WEB_PORT/MD_STREAM_PORT (compose/vm.env) rebind them to 0.0.0.0:3000/4000 in the microVM.
+#   - outbound: web/sidekiq/streaming get http_proxy=sink, an nginx that answers every
+#     request with 502, so federation, remote fetches and link previews never leave;
+#     SMTP goes to Mailpit; S3 is off (local file storage under public/system).
+services:
+  db:
+    volumes: !override
+      - /tank/md-pg:/var/lib/postgresql/data
+    # Docker's default /dev/shm is 64 MB: parallel hash joins / parallel index builds fail with
+    # "could not resize shared memory segment ... No space left on device" -- the specimen hit
+    # the same wall (docs/FORK-EXPERIMENT-1.md, experiment 3; 1g there), Mastodon's compose does not set
+    # it. 4g: a parallel hash of the 100M-row statuses table is work_mem x participants of DSM.
+    shm_size: 4g
+    # postgres:14-alpine ships 128 MB shared_buffers; sized for a 100M-row load and an 8 GiB
+    # guest (web+sidekiq+streaming take ~1 GB). Ops tuning, not an app change.
+    command: >-
+      postgres -c shared_buffers=2GB -c work_mem=64MB -c maintenance_work_mem=1GB
+      -c max_wal_size=16GB -c checkpoint_completion_target=0.9 -c wal_compression=on
+      -c max_parallel_maintenance_workers=6 -c max_parallel_workers_per_gather=4
+      -c random_page_cost=1.1 -c effective_cache_size=6GB
+  redis:
+    volumes: !override
+      - /tank/md-redis:/data
+  web:
+    # Mastodon's EmailMxValidator resolves the e-mail domain over DNS (MX, then A). Aliasing
+    # the web container as LOCAL_DOMAIN makes `mastodon.test` resolve inside the network, so
+    # `tootctl accounts create` works with no external DNS -- including inside a sealed fork.
+    # (example.com is a trap: it publishes a null MX, which the validator treats as unreachable.)
+    networks:
+      external_network: {}
+      internal_network:
+        aliases: [mastodon.test]
+    ports: !override
+      - '${MD_BIND:-127.0.0.1}:${MD_WEB_PORT:-3300}:3000'
+    volumes: !override
+      - /tank/md-system:/mastodon/public/system
+    environment:
+      http_proxy: http://sink:8080
+      no_proxy: db,redis,mailpit,web,streaming,sidekiq,localhost,127.0.0.1
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      sink: { condition: service_started }
+      mailpit: { condition: service_started }
+  streaming:
+    ports: !override
+      - '${MD_BIND:-127.0.0.1}:${MD_STREAM_PORT:-4300}:4000'
+    environment:
+      http_proxy: http://sink:8080
+      no_proxy: db,redis,mailpit,web,streaming,sidekiq,localhost,127.0.0.1
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  sidekiq:
+    volumes: !override
+      - /tank/md-system:/mastodon/public/system
+    environment:
+      http_proxy: http://sink:8080
+      no_proxy: db,redis,mailpit,web,streaming,sidekiq,localhost,127.0.0.1
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      sink: { condition: service_started }
+      mailpit: { condition: service_started }
+  sink:
+    image: nginx:alpine
+    restart: always
+    networks: [internal_network]
+    configs:
+      - { source: sink_nginx, target: /etc/nginx/nginx.conf }
+    healthcheck:
+      test: ['CMD-SHELL', "wget -qO- http://127.0.0.1:8080/ 2>&1 | grep -q sink || wget -qS http://127.0.0.1:8080/ 2>&1 | grep -q 502"]
+      interval: 5s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: always
+    networks: [internal_network]
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - '127.0.0.1:8325:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      retries: 10
+configs:
+  sink_nginx:
+    # inline so the same file works on the host and inside the guest (no host path to mount)
+    content: |
+      events {}
+      http {
+        access_log /dev/stdout;
+        server {
+          listen 8080;
+          location / { return 502 "sink: outbound call blocked\n"; }
+        }
+      }
