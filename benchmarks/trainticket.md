@@ -52,6 +52,7 @@ drifted ~2 h ahead of the clock; corrected against the recorded timestamps.)
 | `vm/{boot,net,stop,bake-rootfs,snapshot,net-ns,fork,unfork}.sh` | +~60 lines of env knobs | parameters, specimen defaults | ROOTFS_IMG, SNAPSHOT, CLONE_PREFIX, SNAPFORK_PREFIX, FC_ID/FC_PREFIX, GUEST_HTTP, HEALTH_PATH, READY_FILE, GUEST_PORTS, APP_UNIT, APP_DIR_GUEST |
 | `benchmarks/trainticket/vm-data.map`, `vm.sh` | 26 + 34 | TT wiring for the vm tooling | keeps every name under `vm/out/tt-*`, `tank/tt-*`, `/run/fc-tt*` |
 | `benchmarks/trainticket/vm-fork-measure.sh` | 48 | per-fork VM measurement | restore, PSS@10/60/120, isolation write, storage delta, host headroom → `vm/out/tt-forks.csv` |
+| `benchmarks/trainticket/onboard.sh`, `vm-data.sh`, `pr-swap.sh` | 24 + 27 + 24 | runbook + the two hand-done steps | added after the repeat run to close its gaps; not used by the repeat measurement |
 | `benchmarks/trainticket/snapshot.sh` | 30 | quiesce + snapshot | `db.fsyncLock()` × 24, clean MySQL stop, `sync`, `zfs snapshot` × 25, thaw |
 
 ## Dependencies not reproducible / mocked
@@ -363,3 +364,80 @@ probes.
 - `/tank/work/trainticket` (upstream clone) and `/tank/work/trainticket-v020` (worktree with the
   one-line "PR"), `codewisdom/ts-ui-dashboard:0.2.0-pr` in the host image store.
 - KSM was never enabled in this exercise; `run=0` verified at the end. No `fc-*` resource remains.
+
+## Repeat onboarding — from zero, committed tooling only
+
+Everything from the first run was destroyed first: the 25 `tank/tt-*` datasets and the zvol with
+their snapshots, `vm/out/tt-*`, `vm/out/snap-ttbase/`, both `/tank/work/trainticket*` checkouts, the
+PR image tag; verified with `zfs list`, `ls` and `docker ps` before the clock started. Not destroyed,
+because not on the list: the 45 pulled images in the host store — so the repeat never re-pulled them
+(44 s in the first run; `tt.sh up` would have pulled them itself, so this is a cache effect, not a
+gap). Rules: fresh clone of upstream at `v0.2.0`, only the committed scripts, configuration and
+generator, no reading the app.
+
+### Wall clock, first run vs. repeat
+
+| milestone | first run | repeat | repeat step time | what ran |
+|---|---|---|---|---|
+| clone + datasets | 05:17 → 05:24 (7 m, inventory) | **2 s** | 2 s | `git clone --branch v0.2.0`, `reset-state.sh` |
+| native boot to 68/68 + probe | 05:24 → 05:52 (28 m, 3 probe revisions) | **+1 m 26 s** | 83.1 s boot, 1 s probe | `tt.sh up -d --wait`, `probe.sh` |
+| 1M orders generated + checked | 05:52 → 06:08 (16 m, 2 regenerations) | **+3 m 27 s** | 103 s | `scale/gen.sh` (defaults) — 1,000,004 orders, 0 dangling |
+| `@tt-base` snapshot | 06:08 → 06:12 | **+3 m 35 s** | 8 s (7.2 s frozen) | `snapshot.sh tt-base` |
+| **Compose fork serving** | **06:28 (71 min)** | **06 m 51 s** | 85.4 s to healthy + 110 s search probe | `fork.sh 1` |
+| data zvol | (ad hoc) | +7 m 35 s | 2 s | **by hand** — see gap 2 |
+| rootfs build | 06:29 → 06:31 | +8 m 39 s | 61 s | `vm.sh build` |
+| bake | 06:31 → 06:34 | +11 m 39 s | 147 s (guest ready at 126.7 s) | `READY_WAIT=1500 vm.sh bake` — see gap 4 |
+| VM boot | 06:35 → 06:38 | +13 m 30 s | UI 16.2 s, **all 68 healthy at 96.4 s** | `vm.sh boot 1` |
+| VM snapshot | 06:40 → 06:41 | +13 m 53 s | 23 s (19.9 s frozen) | `vm.sh snapshot 1 ttbase` |
+| **VM fork serving** | **06:47 (90 min)** | **14 m 30 s** | `t_load` 27 ms, first 200 at 13.9 s | `vm-fork-measure.sh ttbase 1 --probe` |
+| PR → changed system serving | 07:01 | **19 m 10 s** | **9.0 s** | **by hand** — see gap 5 |
+
+The numbers themselves reproduced: native 83.1 s (81.9 / 82.6 before), generator 10,457 orders/s
+(10,487), snapshot 7.2 s frozen (6.4), Compose fork 85.4 s to healthy / 14.3 GB (88.4 / 14.4), VM
+snapshot 19.9 s (19.9), memory file 4.5 GB allocated (4.9), restore PSS 3.7 GB at 120 s (3.1), PR swap
+9.0 s (10.8). One number is new rather than reproduced: **all 68 healthy inside the microVM at 96.4 s**
+— the first run only had "≤ 154 s" because `app-up` never wrote its ready file; the hardened `app-up`
+was in this build. One number moved: the first restore fork took 13.9 s to its first 200 instead of
+9.9 s; same cold page cache, more variance than I would like, and it is the one figure here I would
+re-measure before quoting.
+
+Active time equals wall-clock: the run was continuous. Of the 19 m 10 s, ~15 m 45 s is scripts
+executing (boots, the generator, the two 110–134 s search probes, the bake), ~1 m 40 s is turn latency
+between steps, and the rest is the two hand-done steps.
+
+### Tooling gaps — every point where the repeat needed something not in the repo
+
+1. **Where to clone and which ref.** `tt.sh` hardcodes `/tank/work/trainticket`; the tag `v0.2.0`
+   lives only in the ledger. Nothing in the repo runs the clone.
+2. **The data zvol is built by hand.** `vm.sh` expects `tank/tt-vm-data@tt-base` and `vm-data.map`
+   names the subdirectories, but the zvol's size, block size, filesystem, the copy from each dataset's
+   `.zfs/snapshot/tt-base/`, and the final `zfs snapshot` were all recalled, not read. 2 s to run, the
+   only step that could not have been done cold.
+3. **Free the native stack before booting a 24 GiB guest.** A memory-headroom decision, written
+   nowhere.
+4. **`READY_WAIT=1500` for the bake.** TrainTicket's UI answers 200 at ~45 s while its JVMs need
+   ~130 s; `vm.sh bake` did not set the wait, so a cold operator would have baked a half-started
+   stack.
+5. **The PR swap is eight manual steps** — detached worktree, the edit, `docker build`, `save`, ship
+   over ssh, `load`, retag to the tag the compose file names, `compose up -d --no-deps
+   --force-recreate`, poll — held only in the first run's ledger.
+6. **Step order is prose.** build → bake → (native down) → boot → snapshot → fork is in the ledger's
+   step 5, not in a script.
+
+Not gaps, worth saying: the generator's volume (its defaults are the first run's), the snapshot name
+(`fork.sh` and `vm.sh` both default to `tt-base`), the guest size and vCPUs (`vm.sh`), every port, the
+`.env` variables upstream leaves undefined (`tt.env`), and readiness (`probe.sh`) were all encoded and
+needed no memory.
+
+Closed after the run, and therefore *not* used by the measurement above: `vm-data.sh` (gap 2),
+`pr-swap.sh` (gap 5), `onboard.sh` (gaps 1, 3, 6 — the whole order, clone target and tag included),
+and `vm.sh bake` now defaults `READY_WAIT=1500` (gap 4). A third run would have nothing to remember.
+
+### Verdict
+
+**The platform now absorbs ~64 of the first run's 71 minutes (~90%).** The repeat reached a working
+Compose fork in 6 m 51 s and a VM fork serving a changed build in 19 m 10 s, and essentially all of
+that is execution time — two 83–85 s boots, a 96-second guest boot, a 103 s generator, a 147 s bake
+and two ~2-minute search probes — with two hand-done steps totalling under a minute. What the first
+run spent its hour on — finding out which version was deployable, what to pin, what "healthy" means,
+what the documents look like — is now files.

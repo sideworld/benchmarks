@@ -23,7 +23,7 @@ export APP_UNIT=app.service APP_DIR_GUEST=/opt/app
 export MEM_MIB=${MEM_MIB:-24576} VCPUS=${VCPUS:-8}
 case "$cmd" in
   build)  exec "$REPO/vm/build-rootfs-generic.sh" "$@" ;;
-  bake)   FC_ID=tt${1:-9} exec "$REPO/vm/bake-rootfs.sh" "$@" ;;
+  bake)   FC_ID=tt${1:-9} READY_WAIT=${READY_WAIT:-1500} exec "$REPO/vm/bake-rootfs.sh" "$@" ;;   # TT's UI answers long before its JVMs
   boot)   FC_ID=tt$1 exec "$REPO/vm/boot.sh" "$@" ;;
   stop)   FC_ID=tt$1 exec "$REPO/vm/stop.sh" "$@" ;;
   snapshot) FC_ID=tt$1 exec "$REPO/vm/snapshot.sh" "$@" ;;
