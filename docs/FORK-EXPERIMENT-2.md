@@ -178,6 +178,10 @@ measurements.
 
 ## Open question: memory
 
+Answered in `docs/FORK-EXPERIMENT-3.md`, including a correction to the 9.2 GB below: five
+*genuinely idle* forks sum to 2.3 GB, and 9.2 GB is what they cost after each has served
+requests. The three hypotheses were tested; only the third reduced anything, and not reliably.
+
 2.4 s and 9.2 GB is the wrong shape: the time is nearly free and the memory is not. An idle fork
 privatises ~1.1 GB of a 6,144 MiB guest that is doing nothing, which caps density at roughly 40 forks
 on this box on memory alone, long before CPU. Three hypotheses, tested in experiment 3:
