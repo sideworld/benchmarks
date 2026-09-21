@@ -1,0 +1,106 @@
+# BENCHMARK — evidence ladder and system fork ledger
+
+What has been shown, on which systems, with which numbers. Every figure below is measured and comes
+from a linked document; a `?` is a system not yet attempted and "not measured" is a gap, not a zero.
+Box for all measurements: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1 TB NVMe, Ubuntu 24.04, ZFS (lz4),
+Firecracker v1.17.0.
+
+## 1. Evidence ladder
+
+| level | claim | status | evidence |
+|---|---|---|---|
+| **L1** | Forks the system it was built for | **done** | [`docs/FORK-EXPERIMENT-1.md`](docs/FORK-EXPERIMENT-1.md), [`-2.md`](docs/FORK-EXPERIMENT-2.md), [`-3.md`](docs/FORK-EXPERIMENT-3.md) |
+| **L2** | Forks a large foreign microservice architecture with zero application changes | **done** | [`benchmarks/trainticket.md`](benchmarks/trainticket.md) |
+| **L3** | Forks a foreign system from a different architectural family | **next** — Mastodon | — |
+| **L4** | Forks a company's proprietary system, with their data model and operational weirdness | pending — requires a design partner | — |
+| **L5** | The company keeps using forks without us present | pending | — |
+
+Each level removes one excuse the level below leaves open: L1 could be a system shaped to fit the
+tool; L2 could be one architectural family (Compose, JVM microservices, a database per service); L3
+could still be open source with a clean deployment; L4 could be us driving it; L5 cannot be any of those.
+
+## 2. System fork ledger
+
+| | **Specimen** (Helpdesk) | **TrainTicket** 0.2.0 | **Mastodon** |
+|---|---|---|---|
+| **First useful fork** (clone → fork, wall-clock) | n/a — the runtime was built around it; no cold onboarding was measured | **first run 71 min** (clone 05:17 → Compose fork healthy 06:28; 90 min to the first Firecracker fork). **Scripted third run, images purged, zero decisions: 9 m 46 s** to a snapshotted VM, **14 m 42 s** to a changed build serving | ? |
+| **Total onboarding effort** (hours) | n/a — not separable from building the runtime | **1.9 h** first run (05:17–07:12, continuous) incl. 1.1 h on the data generator; **3.1 h** including the repeat and third runs that turned it into scripts | ? |
+| **Application changes** | 0 | **0** | ? |
+| **Persistent technologies** | 4 × PostgreSQL 16 (database-per-tenant and `tenant_id`-column tenancy), Kafka (KRaft) | 24 × MongoDB 4.4, MySQL 5.7, Redis (no volume upstream: stateless) | ? |
+| **Data scale** | 10,000,000 conversations, 49,868,338 messages, 96.4M rows; 19.17 GB in Postgres, 13.2 GB on ZFS (1.60×) | 1,000,004 orders, 809,242 × 2 payments, 10,002 users, 1,010 trips; 607 MiB on ZFS (1.13×) | ? |
+| **Cold ready** | native `compose up --wait` **31.9 s**; microVM cold boot **26.2 s** | native **81.9 s** (68/68 healthy, seeding included); microVM **96.4 s** all 68 healthy (UI answers at 16–22 s) | ? |
+| **Warm fork ready** | **2.4 s** (`t_load` 25 ms) | **5.4 s p50 / 5.5 s p95** steady-state. The first restore of a fresh snapshot is 13–18 s without pre-faulting the memory file through a mapping; 5.5 s with it | ? |
+| **PR → changed system serving** | — (not measured) | **9.0–10.8 s** (runs 1–2, by hand; 4.8 s of it inside the fork); 7.5 s scripted (`pr-swap.sh`, run 3) | ? |
+| **PSS per idle fork** | **473 MB** @120 s (6 GiB guest; 449 MB in a 2 GiB guest); marginal fork ~400–500 MB from the third on; 2–5× once the fork does work | **3.0–3.6 GB** @120 s (24 GiB guest); ~5 GB after serving a search | ? |
+| **Concurrent forks reached** | **5+** — five measured (2.3 GB summed idle), not a ceiling; ~100 projected on memory | **6 + source** — stopped by a ≥ 10 GiB host-headroom rule, not by failure (40.4 GB summed PSS); Compose+ZFS path: 2 forks + native | ? |
+| **Customer-specific runtime code** | **0 lines** (the runtime's first builder, `vm/build-rootfs.sh` + `vm/guest/`, was written against it and later generalised) | **0 lines** — TrainTicket appears in the runtime in two comments. Adapters live outside the runtime: 704 lines in `benchmarks/trainticket/` plus a 727-line generated Compose override | ? |
+| **Generic tooling added** (lines, from git) | **2,781** lines in 33 files: `vm/` + `mkfork.{sh,py}` as of `e5b854b`, the commit before TrainTicket | **+559 / −59** in the same paths (`91d9375^..HEAD`): `build-rootfs-generic.sh` 276, `mkfork-generic.{sh,py}` 102, `guest-generic/` 70, env knobs on 8 `vm/` scripts | ? |
+| **Bugs / pathologies exposed at scale** | Missing `messages(conversation_id, created_at)` index: create and assign take 2 s alone, 9.3 s under load, and the API suite that passes at 200 rows **fails 18 of 32 at 4M**; inbox list p95 403 ms, tag filter 905 ms, N+1 99 s per page; `/all` 502 after 10 s; sample migration holds `AccessExclusiveLock` 12.5 min; the probe itself reported that 502 as PASS; parallel VACUUM dies on Docker's 64 MB `/dev/shm`; snapshotting an unquiesced Postgres costs every fork 12 s and ~800 MB | Ticket search is O(trips × orders): 0.14 s on seed data, **104 s at 1M orders** (order stores carry only the `_id` index); seed data is incoherent (dangling orders, payment, stations) and lies about the schema (`seatNumber` that `parseInt` cannot read); seeding is not idempotent (one extra order per boot); `ts-voucher-service` crash-loops until MySQL's first-boot init ends; untagged `mongo`/`mysql` now resolve to versions the drivers cannot speak to; no healthchecks, and `/health` is 403 behind the app's own JWT filter | ? |
+| **Equivalent alternative the team would use today** | fixtures (the API-driven `make seed`, 200 conversations) | a conventional shared environment | ? |
+| **Alternative → equivalent-state time** | **Cannot reach it.** Fixtures: 31.9 s boot + 6.7 s seed gives changed code serving and workers running — but **no production-scale data** (200 rows, where every pathology above is invisible) and **cold caches**. Rebuilding scale per environment instead: 765.9 s load + 31.9 s boot ≈ **13.3 min**, caches still cold; forking that state without the engine (Compose+ZFS): 31.9–43.5 s, caches cold | **Not measured** for a shared environment (deploy time there is the team's pipeline, not ours). A shared environment has the data, warm caches and running workers, but **cannot provide isolation or concurrent changed builds**: one change at a time, and every write lands in everyone's state. A fresh private environment instead: 44 s pull + 81.9 s boot + 97.5 s generator ≈ **3.7 min**, caches cold, and only if the team owns a generator (1.1 h to write here) | ? |
+
+### Row definitions
+
+So that future entries are comparable. When a system cannot supply a number, write "not measured" or
+"n/a" with the reason — never a blank and never an estimate.
+
+- **First useful fork** — wall-clock from `git clone` of the *upstream* system to the first fork that
+  is healthy by that system's user-level readiness probe and proves isolation with one write. Includes
+  reading, debugging, data generation and every failed attempt. Report the first run (a human
+  discovering the system) and, separately, the best scripted rerun from a full teardown; say whether
+  images were re-pulled and how many decisions the rerun needed.
+- **Total onboarding effort** — operator hours of activity, summed from the system's time ledger,
+  including reruns done to turn the onboarding into scripts. State whether it equals wall-clock.
+- **Application changes** — lines changed in the system's own source, images or upstream deployment
+  files. Overrides, env files, init scripts, fakes and data generators are adapters, not application
+  changes. Version pins count as fidelity trades and are listed in the system's ledger.
+- **Persistent technologies** — every stateful store that had to survive quiesce, snapshot and restore
+  (or clone), with versions and counts. Note stores that are stateless in this deployment.
+- **Data scale** — row/document counts of the dominant entities, logical size in the stores, and
+  on-disk size with compression ratio, at the snapshot the forks are taken from.
+- **Cold ready** — a fresh start on the prepared state to *all* services healthy: natively
+  (`docker compose up --wait`) and inside the microVM. Not "first port answers".
+- **Warm fork ready** — firecracker exec to the first HTTP 200 from the system's front door
+  (`t_restore_to_api_response`) for a restore of an existing snapshot, p50 / p95 over ≥ 10 restores.
+  Report separately the first restore of a fresh snapshot (cold page cache). Excludes clock
+  convergence, which is measured on its own.
+- **PR → changed system serving** — from a source change on disk to the changed behaviour being served
+  by one fork while its siblings still serve the old one: build, ship, load, swap, first changed response.
+- **PSS per idle fork** — `Pss` from `/proc/<firecracker pid>/smaps_rollup` 120 s after that fork's own
+  restore, with no requests sent to it; median across forks, with the guest size. Give the figure
+  after real work separately. PSS, not RSS and not guest RAM: shared memory-file pages are split
+  between the forks that map them.
+- **Concurrent forks reached** — forks of one snapshot simultaneously healthy and isolated on the box,
+  and what stopped the count: a ceiling, a headroom rule, or simply where measurement ended.
+- **Customer-specific runtime code** — lines inside the fork runtime (`vm/`, `mkfork*`) that name or
+  branch on a particular system's application. Comments do not count; adapters that live beside the
+  system do not count but must be reported with their line count.
+- **Generic tooling added** — lines added to the runtime while onboarding that system, from
+  `git diff --numstat <commit before>..<commit after> -- vm mkfork.sh mkfork.py`; reusable by the next
+  system by construction. The first system's entry is the runtime's size when the second began.
+- **Bugs / pathologies exposed at scale** — defects of the *application* (or its tooling) that were
+  invisible on seed data and appeared at the ledger's data scale, each with its small-scale and
+  at-scale number. Runtime bugs belong in the experiment docs' "what broke".
+- **Equivalent alternative the team would use today** — what this team would actually reach for,
+  without the fork runtime, to try a change against realistic state.
+- **Alternative → equivalent-state time** — time for that alternative to reach a state with **the
+  changed code serving, caches warm, workers running and production-scale data present**. Mark every
+  component the alternative cannot provide at all; if it cannot provide one, the honest entry is
+  "cannot reach it" plus the time to the nearest state it can reach.
+
+## How to reproduce
+
+Runtime: [`vm/`](vm/) (start at [`vm/README.md`](vm/README.md)) and `mkfork*.sh`
+([`mkfork.sh`](mkfork.sh) for the specimen, [`vm/mkfork-generic.sh`](vm/mkfork-generic.sh) for any
+Compose project). Specimen state: `make scale N=10000000` ([`data/scale/README.md`](data/scale/README.md)),
+probes in [`docs/PROBE-10M.md`](docs/PROBE-10M.md). TrainTicket, end to end from a clean box:
+[`benchmarks/trainticket/onboard.sh`](benchmarks/trainticket/onboard.sh), then the two commands it
+prints (`vm-fork-measure.sh`, `pr-swap.sh`); everything it uses is in
+[`benchmarks/trainticket/`](benchmarks/trainticket/).
+
+## Sources
+
+- [`docs/FORK-EXPERIMENT-1.md`](docs/FORK-EXPERIMENT-1.md) — Compose+ZFS forks of the 10M baseline; hot, clean and vacuumed snapshots; the create-path finding
+- [`docs/FORK-EXPERIMENT-2.md`](docs/FORK-EXPERIMENT-2.md) — Firecracker snapshot/restore forks, 2.4 s, isolation, what the engine must do
+- [`docs/FORK-EXPERIMENT-3.md`](docs/FORK-EXPERIMENT-3.md) — where a fork's memory goes: 473 MB idle, churn is the cost
+- [`benchmarks/trainticket.md`](benchmarks/trainticket.md) — TrainTicket ledger: time, adapters, protocol results, repeat and third runs, restore variance
