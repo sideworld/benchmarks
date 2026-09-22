@@ -5,8 +5,8 @@
 # host's memory headroom afterwards. Appends a row to vm/out/tt-forks.csv.
 #   benchmarks/trainticket/vm-fork-measure.sh <name> <k> [--probe]
 set -euo pipefail
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); OUT=$SNOWGLOBE_DIR/vm/out
-SNOWGLOBE_DIR=${SNOWGLOBE_DIR:-$(cd "$HERE/../../../snowglobe" 2>/dev/null && pwd || echo "$HERE/../../../snowglobe")}  # sibling checkout of the fork runtime
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); OUT=$SIDEWORLD_DIR/vm/out
+SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
 NAME=${1:?name}; K=${2:?k}; PROBE=${3:-}
 KK=$(printf '%02d' "$K"); P_UI=3${KK}80; P_AUTH=3${KK}90; P_TRAVEL=3${KK}70; P_CONTACTS=3${KK}60; P_SSH=3${KK}22
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }

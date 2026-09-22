@@ -1,15 +1,15 @@
 # TrainTicket onboarding — ledger and benchmark
 
 > **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
-> `../specimen/` or `../snowglobe/` point into the sibling repositories, expected to be checked out
-> next to this one (`SPECIMEN_DIR` / `SNOWGLOBE_DIR` in the scripts). Paths without that prefix are in this repo.
+> `../specimen/` or `../sideworld/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `SIDEWORLD_DIR` in the scripts). Paths without that prefix are in this repo.
 
 Live ledger, updated as work happens. Started 2026-09-21 (box: Hetzner Ryzen 7 7700, 64 GB, Ubuntu
 24.04, host kernel 6.8.0-139, Firecracker v1.17.0). Time-box: 16 h of operator activity. Gate: if
 TrainTicket is not healthy natively within 4 h, stop and record why.
 
 Target: FudanSELab/train-ticket — 41 services, Java/Node/Python/Go, MySQL + MongoDB — onto the fork
-runtime built for the specimen (`../snowglobe/vm/`, `docs/FORK-EXPERIMENT-{1,2,3}.md`), with **zero changes to
+runtime built for the specimen (`../sideworld/vm/`, `docs/FORK-EXPERIMENT-{1,2,3}.md`), with **zero changes to
 TrainTicket's application code**. Adapters allowed: Compose overrides, env vars, init scripts,
 mocks/fakes for external calls, data generators.
 
@@ -29,9 +29,9 @@ drifted ~2 h ahead of the clock; corrected against the recorded timestamps.)
 | 6 | 05:52–05:57 | data model from source + seeded docs; generator, checker, quiesce script; `HexData(3)` Java-legacy UUIDs | 0.08 | data | |
 | 7 | 05:57–06:08 | validation run; seed-data incoherence traced; duplicate-key on additive rerun (seed mixing); reset bug (mountpoint at `/tt-*`) found and repaired; true cold boot 81.9 s; 1M generated twice (seatNumber format) | 0.18 | data | two of my errors, one of the app's |
 | 8 | 06:08–06:12 | search at 1M (104 s / 40 s), snapshot `@tt-base` (6.4 s frozen) | 0.07 | measurement | |
-| 9 | 06:12–06:28 | `../snowglobe/vm/mkfork-generic.{sh,py}`, TT fork map + runner; fork 1, fork 2, ceiling, unfork | 0.27 | fork-compose | |
+| 9 | 06:12–06:28 | `../sideworld/vm/mkfork-generic.{sh,py}`, TT fork map + runner; fork 1, fork 2, ceiling, unfork | 0.27 | fork-compose | |
 | 10 | 06:28–06:31 | Firecracker generalisation: `build-rootfs-generic.sh` + `guest-generic/`, env knobs on 8 vm scripts, TT data zvol, `vm.sh`; rootfs build (61 s) | 0.05 | fork-vm | edits were mostly pre-written while forks ran |
-| 14 | 07:02–07:12 | recovery evidence, teardown, host verification, specimen `../snowglobe/vm/boot.sh 1` proof, write-up | 0.17 | writeup | |
+| 14 | 07:02–07:12 | recovery evidence, teardown, host verification, specimen `../sideworld/vm/boot.sh 1` proof, write-up | 0.17 | writeup | |
 | 15 | 11:41–12:00 | **repeat onboarding** from a clean teardown: 19 m 10 s, six gaps recorded; gap-closing scripts after | 0.45 | measurement | |
 | 16 | 12:09–12:50 | **third run**: attempt 1 found the SIGPIPE gap (fixed), attempt 2 from a full teardown with images purged: 14 m 42 s, zero decisions; restore variance: 10 warm restores + 2 cold/pre-fault pairs; Compose fork; write-up | 0.7 | measurement | |
 | 13 | 06:42–07:02 | six restore forks with PSS series + isolation; image swap in fork 1 | 0.33 | fork-vm | |
@@ -51,13 +51,13 @@ drifted ~2 h ahead of the clock; corrected against the recorded timestamps.)
 | `benchmarks/trainticket/scale/check.js` | 33 | coherence check | samples orders and payments and follows every reference |
 | `benchmarks/trainticket/scale/gen.sh` | 20 | runner | timing, rows/s, ZFS on-disk + compressratio |
 | `benchmarks/trainticket/reset-state.sh` | 22 | state reset | destroy + recreate the 25 datasets with explicit mountpoints |
-| `../snowglobe/vm/mkfork-generic.sh` + `../snowglobe/vm/mkfork-generic.py` | 63 + 36 | generic fork tool | `../snowglobe/mkfork.sh` generalised to any Compose project; specimen behaviour is the default |
+| `../sideworld/vm/mkfork-generic.sh` + `../sideworld/vm/mkfork-generic.py` | 63 + 36 | generic fork tool | `../sideworld/mkfork.sh` generalised to any Compose project; specimen behaviour is the default |
 | `benchmarks/trainticket/fork.map` | 26 | fork map | 25 stateful services → datasets → clone names |
 | `benchmarks/trainticket/fork.sh` + `unfork.sh` | 52 + 18 | fork runner | clone, up, time, probe, isolation write, cgroup RAM, storage delta; inverse |
-| `../snowglobe/vm/build-rootfs-generic.sh` + `../snowglobe/vm/guest-generic/` (7 files) | 260 + 95 | generic rootfs builder | any Compose app: APP_DIR, COMPOSE_FILES, ENV_FILE, DATA_MAP; generic `app.service`, image loader, DB-aware quiesce/thaw/post-restore (Postgres CHECKPOINT / Mongo fsyncLock / MySQL flush) |
-| `../snowglobe/vm/{boot,net,stop,bake-rootfs,snapshot,net-ns,fork,unfork}.sh` | +~60 lines of env knobs | parameters, specimen defaults | ROOTFS_IMG, SNAPSHOT, CLONE_PREFIX, SNAPFORK_PREFIX, FC_ID/FC_PREFIX, GUEST_HTTP, HEALTH_PATH, READY_FILE, GUEST_PORTS, APP_UNIT, APP_DIR_GUEST |
-| `benchmarks/trainticket/vm-data.map`, `vm.sh` | 26 + 34 | TT wiring for the vm tooling | keeps every name under `../snowglobe/vm/out/tt-*`, `tank/tt-*`, `/run/fc-tt*` |
-| `benchmarks/trainticket/vm-fork-measure.sh` | 48 | per-fork VM measurement | restore, PSS@10/60/120, isolation write, storage delta, host headroom → `../snowglobe/vm/out/tt-forks.csv` |
+| `../sideworld/vm/build-rootfs-generic.sh` + `../sideworld/vm/guest-generic/` (7 files) | 260 + 95 | generic rootfs builder | any Compose app: APP_DIR, COMPOSE_FILES, ENV_FILE, DATA_MAP; generic `app.service`, image loader, DB-aware quiesce/thaw/post-restore (Postgres CHECKPOINT / Mongo fsyncLock / MySQL flush) |
+| `../sideworld/vm/{boot,net,stop,bake-rootfs,snapshot,net-ns,fork,unfork}.sh` | +~60 lines of env knobs | parameters, specimen defaults | ROOTFS_IMG, SNAPSHOT, CLONE_PREFIX, SNAPFORK_PREFIX, FC_ID/FC_PREFIX, GUEST_HTTP, HEALTH_PATH, READY_FILE, GUEST_PORTS, APP_UNIT, APP_DIR_GUEST |
+| `benchmarks/trainticket/vm-data.map`, `vm.sh` | 26 + 34 | TT wiring for the vm tooling | keeps every name under `../sideworld/vm/out/tt-*`, `tank/tt-*`, `/run/fc-tt*` |
+| `benchmarks/trainticket/vm-fork-measure.sh` | 48 | per-fork VM measurement | restore, PSS@10/60/120, isolation write, storage delta, host headroom → `../sideworld/vm/out/tt-forks.csv` |
 | `benchmarks/trainticket/onboard.sh`, `vm-data.sh`, `pr-swap.sh` | 24 + 27 + 24 | runbook + the two hand-done steps | added after the repeat run to close its gaps; not used by the repeat measurement |
 | `benchmarks/trainticket/snapshot.sh` | 30 | quiesce + snapshot | `db.fsyncLock()` × 24, clean MySQL stop, `sync`, `zfs snapshot` × 25, thaw |
 
@@ -86,7 +86,7 @@ drifted ~2 h ahead of the clock; corrected against the recorded timestamps.)
 
 ### Step 4 — Compose fork on ZFS (engine-less)
 
-Tooling: `../snowglobe/vm/mkfork-generic.sh` + `../snowglobe/vm/mkfork-generic.py` (the specimen's `../snowglobe/mkfork.sh` generalised:
+Tooling: `../sideworld/vm/mkfork-generic.sh` + `../sideworld/vm/mkfork-generic.py` (the specimen's `../sideworld/mkfork.sh` generalised:
 project dir, snapshot, a `FORK_MAP` of `service container-path source-dataset clone-dataset`, a port
 `OFFSET`, a project name; refuses offsets that land on live listeners; the specimen's five datasets and
 `n*1000` remain the defaults). TrainTicket's map is `benchmarks/trainticket/fork.map` (25 lines);
@@ -113,13 +113,13 @@ references 568 MiB across 25 snapshots.
 
 ### Step 5 — Firecracker path
 
-Tooling: `../snowglobe/vm/build-rootfs-generic.sh` + `../snowglobe/vm/guest-generic/` (new), the eight existing `../snowglobe/vm/` scripts
+Tooling: `../sideworld/vm/build-rootfs-generic.sh` + `../sideworld/vm/guest-generic/` (new), the eight existing `../sideworld/vm/` scripts
 with env knobs (specimen defaults untouched), `benchmarks/trainticket/vm.sh` to set them for
 TrainTicket, `vm-data.map` (25 lines), `vm-fork-measure.sh`.
 
 | | |
 |---|---|
-| rootfs build | `../snowglobe/vm/out/tt-rootfs.ext4`, 24 GiB image, **61 s**: 45 images → 2.2 GB archive; 2.9 GB used before load |
+| rootfs build | `../sideworld/vm/out/tt-rootfs.ext4`, 24 GiB image, **61 s**: 45 images → 2.2 GB archive; 2.9 GB used before load |
 | bake (first boot in a 24 GiB / 8 vCPU guest, image load, clean shutdown, adopt) | UI answers at 50.4 s; **all 68 healthy at 131.2 s** guest time (includes loading 4.7 GB of images); baked rootfs 6.0 GB used |
 | data disk | `tank/tt-vm-data`: 24 GB zvol, ext4, the 25 `@tt-base` state dirs copied in (670 MB, uid 999 preserved), snapshotted `@tt-base`; per VM a `zfs clone` |
 | guest size | started at 24,576 MiB as briefed. **Actually used: 12,965 MiB (anon 12,287, file 4,047)** with 68 containers healthy at 1M orders — a 16 GiB guest would do; 12 GiB would be tight |
@@ -136,7 +136,7 @@ Each fork: `zfs clone` of `tank/tt-vmfork1@ttbase`, reflink of the 24 GB rootfs,
 (`fc-ns<k>`, tap pinned to the source MAC), `PUT /snapshot/load` with `resume_vm:false`, both drives
 repointed with `PATCH /drives`, resume, then `post-restore` over ssh (thaw `/data`, `fsyncUnlock` × 24,
 gratuitous ARP, chrony). Host ports: `3<kk>80` UI, `3<kk>90` auth, `3<kk>70` travel, `3<kk>60`
-contacts, `3<kk>22` ssh. Series in `../snowglobe/vm/out/tt-forks.csv`.
+contacts, `3<kk>22` ssh. Series in `../sideworld/vm/out/tt-forks.csv`.
 
 | fork | `t_load` | `t_restore_to_api_response` (UI 200) | PSS @10 s | @60 s | **@120 s** | anon/file @120 s | storage delta | isolation | host avail after |
 |---|---|---|---|---|---|---|---|---|---|
@@ -260,7 +260,7 @@ combine; this exercise onboards **TrainTicket 0.2.0 as its Compose file defines 
 |---|---|---|
 | system | 6 built services + 4 Postgres + Kafka + IdP + stripe-fake + OTel, 14 containers | 41 services (37 Java, 1 Go, 1 Node, 2 Python) + 24 Mongo + 1 MySQL + Redis + nginx, **68 containers** |
 | **time to onboard**, clone → first useful fork | — (the runtime was built around it) | **wall-clock 1 h 11 min** (05:17 clone → 06:28 Compose fork 1 healthy); **1 h 30 min** to the first Firecracker fork (06:47); operator hours = the same, work was continuous |
-| **adapters written** | `docker-compose.vm.yml` (generated) | 16 files, ~1,050 lines: compose override generator 115 + generated override 690, env 6, wrapper 12, probe 34, generator 143 + checker 33 + runner 20, snapshot 30, reset 22, fork map 26 + runner 52 + inverse 18, VM wiring 26 + 34 + 48; plus **generic runtime**: `build-rootfs-generic.sh` 260, `guest-generic/` 95, `mkfork-generic.{sh,py}` 99, ~60 lines of env knobs across 8 `../snowglobe/vm/` scripts |
+| **adapters written** | `docker-compose.vm.yml` (generated) | 16 files, ~1,050 lines: compose override generator 115 + generated override 690, env 6, wrapper 12, probe 34, generator 143 + checker 33 + runner 20, snapshot 30, reset 22, fork map 26 + runner 52 + inverse 18, VM wiring 26 + 34 + 48; plus **generic runtime**: `build-rootfs-generic.sh` 260, `guest-generic/` 95, `mkfork-generic.{sh,py}` 99, ~60 lines of env knobs across 8 `../sideworld/vm/` scripts |
 | **application changes required** | 0 | **0** |
 | dependencies unsupported / mocked | none | `rest-service-external` absent upstream, left absent (fire-and-forget); nothing mocked |
 | things shared rather than forked | rootfs (reflink), memory file (page cache), image layers | same: 24 GB rootfs reflinked per fork, 24 GiB memory file shared via page cache (16 GB `Cached` at 6 forks), image store inside the rootfs. Nothing else is shared; each fork has its own 25 DBs. |
@@ -364,8 +364,8 @@ probes.
 
 - `tank/tt-*` (25 state datasets, 607 MiB) with `@tt-base`, `tank/tt-vm-data` zvol (616 MiB) with
   `@tt-base` — the populated TrainTicket state; `benchmarks/trainticket/reset-state.sh` empties them.
-- `../snowglobe/vm/out/tt-rootfs.ext4` (24 GiB sparse, 6 GB used), `../snowglobe/vm/out/tt-images.tar` (2.2 GB),
-  `../snowglobe/vm/out/snap-ttbase/` (memory file 4.9 GB allocated + a reflinked rootfs copy), `../snowglobe/vm/out/tt-forks.csv`,
+- `../sideworld/vm/out/tt-rootfs.ext4` (24 GiB sparse, 6 GB used), `../sideworld/vm/out/tt-images.tar` (2.2 GB),
+  `../sideworld/vm/out/snap-ttbase/` (memory file 4.9 GB allocated + a reflinked rootfs copy), `../sideworld/vm/out/tt-forks.csv`,
   serial and fork logs.
 - `/tank/work/trainticket` (upstream clone) and `/tank/work/trainticket-v020` (worktree with the
   one-line "PR"), `codewisdom/ts-ui-dashboard:0.2.0-pr` in the host image store.
@@ -374,7 +374,7 @@ probes.
 ## Repeat onboarding — from zero, committed tooling only
 
 Everything from the first run was destroyed first: the 25 `tank/tt-*` datasets and the zvol with
-their snapshots, `../snowglobe/vm/out/tt-*`, `../snowglobe/vm/out/snap-ttbase/`, both `/tank/work/trainticket*` checkouts, the
+their snapshots, `../sideworld/vm/out/tt-*`, `../sideworld/vm/out/snap-ttbase/`, both `/tank/work/trainticket*` checkouts, the
 PR image tag; verified with `zfs list`, `ls` and `docker ps` before the clock started. Not destroyed,
 because not on the list: the 45 pulled images in the host store — so the repeat never re-pulled them
 (44 s in the first run; `tt.sh up` would have pulled them itself, so this is a cache effect, not a
@@ -451,7 +451,7 @@ what the documents look like — is now files.
 ## Third run — the prediction, measured
 
 The repeat section ended with "a third run would have nothing to remember". Tested: full teardown again
-(datasets, zvol, `../snowglobe/vm/out/tt-*`, snapshot dir, checkouts — **and the 45 images this time**), then
+(datasets, zvol, `../sideworld/vm/out/tt-*`, snapshot dir, checkouts — **and the 45 images this time**), then
 `onboard.sh` alone, then `vm-fork-measure.sh ttbase 1 --probe`, then `pr-swap.sh 1`. No reading, no
 recall. Time-box 30 min.
 
@@ -460,7 +460,7 @@ after the `@tt-base` snapshot. `snapshot.sh`'s last line piped its listing throu
 `set -o pipefail`; when `head` exits first, `awk` dies of SIGPIPE, the script returns 141 *after a
 successful snapshot*, and the caller's `set -e` stops — with nothing printed, because my grep filter had
 swallowed the step markers. Timing-dependent, which is why the first three runs got away with it. Fixed
-in `snapshot.sh` (no `head`), and `onboard.sh` now logs everything to `../snowglobe/vm/out/tt-onboard.log` and
+in `snapshot.sh` (no `head`), and `onboard.sh` now logs everything to `../sideworld/vm/out/tt-onboard.log` and
 prints `FAILED (exit n) during: <step>` on error. A better place to find it than in front of a design
 partner, as intended.
 

@@ -1,8 +1,8 @@
 # Mastodon onboarding (L3) — ledger and benchmark
 
 > **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
-> `../specimen/` or `../snowglobe/` point into the sibling repositories, expected to be checked out
-> next to this one (`SPECIMEN_DIR` / `SNOWGLOBE_DIR` in the scripts). Paths without that prefix are in this repo.
+> `../specimen/` or `../sideworld/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `SIDEWORLD_DIR` in the scripts). Paths without that prefix are in this repo.
 
 Live ledger. Started 2026-09-21 (box: Hetzner Ryzen 7 7700, 64 GB, Ubuntu 24.04 / 6.8, Firecracker
 v1.17.0). Time-box: 16 h of operator activity. Gate: if Mastodon is not ready natively within 4 h,
@@ -19,7 +19,7 @@ data generators.
 | # | when (UTC) | step | hours | category | notes |
 |---|---|---|---|---|---|
 | 17 | 18:14–18:45 | write-up: protocol table, BENCHMARK column, BUILDLOG, tallies, commit | 0.5 | writeup | |
-| 16 | 18:04–18:14 | PR swap (three attempts: env file, refused-connection poll, then timed), alternative baseline ×2, Compose re-measure, teardown of 10 forks + source, specimen `../snowglobe/vm/boot.sh 1` proof (27.2 s), KSM off | 0.17 | measurement | |
+| 16 | 18:04–18:14 | PR swap (three attempts: env file, refused-connection poll, then timed), alternative baseline ×2, Compose re-measure, teardown of 10 forks + source, specimen `../sideworld/vm/boot.sh 1` proof (27.2 s), KSM off | 0.17 | measurement | |
 | 15 | 17:20–18:05 | VM path: zvol, bake, boot 1, snapshot + pre-fault, series 1 (aborted: my seq-scan isolation query), series 2 (10 forks), warm restore series; ledger | 0.75 | fork-vm | ~0.4 h of it waiting on the 120 s idle windows |
 | 14 | 17:15–17:20 | Compose fork 1 (twice: token path), ledger; zvol build launched | 0.08 | fork-compose | |
 | 13 | 17:11–17:20 | migration results into the ledger; native quiesce + `@md-base` | 0.15 | migration | |
@@ -65,24 +65,24 @@ Mastodon-specific (`benchmarks/mastodon/`):
 | `probe.sh` | 36 | readiness | instance 200 + streaming OK + a status posted and processed by Sidekiq |
 | `reset-db.sh` | 13 | reset | back to post-init (needs `DISABLE_DATABASE_ENVIRONMENT_CHECK=1`) |
 | `md.sh` | 9 | wrapper | the compose invocation |
-| `app.spec` | 25 | app spec | what `../snowglobe/vm/onboard-generic.sh` needs to know |
+| `app.spec` | 25 | app spec | what `../sideworld/vm/onboard-generic.sh` needs to know |
 | `scale/gen.sql` + `scale/gen.sh` | 165 + 48 | data generator | data-plane load with Mastodon's id scheme, shape and references; indexes dropped/rebuilt, restored on any exit |
 | `migration.sh` | 33 | experiment | naive vs. safe migrations on 100M rows |
 | `probes.sh` | 34 | experiment | p50/p95 of the timelines/notifications/lookup + slow-query EXPLAIN |
 | `alt-baseline.sh` | 43 | experiment | the no-runtime alternative: DB clone + cold deploy |
 | `pr-swap.sh` | 30 | experiment | PR → serving inside a VM fork |
 
-Generic, added to `../snowglobe/vm/` this time (the runbook layer TrainTicket showed was missing):
+Generic, added to `../sideworld/vm/` this time (the runbook layer TrainTicket showed was missing):
 
 | file | lines | what |
 |---|---|---|
-| `../snowglobe/vm/onboard-generic.sh` | 40 | spec-driven runbook: clone → datasets → hooks → up → probe → generate → native snapshot → zvol → rootfs → bake → boot → VM snapshot |
-| `../snowglobe/vm/app.sh` | 27 | spec-driven `vm.sh`: sets every knob from the spec; `VM_ENV_FILE` (guest-only env file, defaults to `ENV_FILE`) and `EXTRA_COPY` pass-through |
-| `../snowglobe/vm/app-datasets.sh` | 27 | create/chown/snapshot datasets, emit `DATA_MAP` and `FORK_MAP` from the spec; a dataset two services share (web + sidekiq → `public/system`) is snapshotted once |
-| `../snowglobe/vm/app-snapshot-native.sh` | 30 | quiesce by image (Postgres CHECKPOINT/VACUUM, Redis BGSAVE, Mongo, MySQL), clean stop, snapshot, start |
-| `../snowglobe/vm/app-zvol.sh` | 20 | data zvol from dataset snapshots, per the map (shared dataset copied once) |
-| `../snowglobe/vm/prefault.py` + `PREFAULT=1` in `snapshot.sh` | 14 + 8 | fault the memory file's allocated extents through a mapping after `/snapshot/create` (the TrainTicket requirement) |
-| `../snowglobe/vm/guest-generic/…/quiesce` | +1 | Redis `BGSAVE` in the in-guest quiesce |
+| `../sideworld/vm/onboard-generic.sh` | 40 | spec-driven runbook: clone → datasets → hooks → up → probe → generate → native snapshot → zvol → rootfs → bake → boot → VM snapshot |
+| `../sideworld/vm/app.sh` | 27 | spec-driven `vm.sh`: sets every knob from the spec; `VM_ENV_FILE` (guest-only env file, defaults to `ENV_FILE`) and `EXTRA_COPY` pass-through |
+| `../sideworld/vm/app-datasets.sh` | 27 | create/chown/snapshot datasets, emit `DATA_MAP` and `FORK_MAP` from the spec; a dataset two services share (web + sidekiq → `public/system`) is snapshotted once |
+| `../sideworld/vm/app-snapshot-native.sh` | 30 | quiesce by image (Postgres CHECKPOINT/VACUUM, Redis BGSAVE, Mongo, MySQL), clean stop, snapshot, start |
+| `../sideworld/vm/app-zvol.sh` | 20 | data zvol from dataset snapshots, per the map (shared dataset copied once) |
+| `../sideworld/vm/prefault.py` + `PREFAULT=1` in `snapshot.sh` | 14 + 8 | fault the memory file's allocated extents through a mapping after `/snapshot/create` (the TrainTicket requirement) |
+| `../sideworld/vm/guest-generic/…/quiesce` | +1 | Redis `BGSAVE` in the in-guest quiesce |
 
 ## Unsupported / mocked dependencies
 
@@ -152,7 +152,7 @@ not touch), every later step is TrainTicket-shaped:
 | `vm.sh` | every knob hardcoded for TrainTicket | generic: spec-driven |
 | readiness | `probe.sh` is login + ticket search | app-specific by nature |
 
-So the "generic onboarding" is, today, the generic *runtime* (`../snowglobe/vm/*`, `mkfork-generic`) plus a
+So the "generic onboarding" is, today, the generic *runtime* (`../sideworld/vm/*`, `mkfork-generic`) plus a
 TrainTicket runbook. The runbook itself is the gap: an app spec (repo, tag, compose files, env, a
 service→path→dataset map, hooks for init/probe/generate) and an `onboard-generic.sh` that drives the
 existing pieces from it. That is what this exercise builds; Mastodon-specific pieces go in
@@ -306,7 +306,7 @@ catch after.
 
 ### Step 5c — quiesce, clean stop, `@md-base` (native, 17:13 UTC)
 
-`VACUUM=1 ../snowglobe/vm/app-snapshot-native.sh benchmarks/mastodon/app.spec md-base`: VACUUM ANALYZE +
+`VACUUM=1 ../sideworld/vm/app-snapshot-native.sh benchmarks/mastodon/app.spec md-base`: VACUUM ANALYZE +
 CHECKPOINT + Redis BGSAVE **22.9 s**, `compose stop` **2.1 s** (Postgres shuts down in a
 blink after the checkpoint), three `zfs snapshot`s **0.1 s**, `compose start` 31.1 s;
 **total frozen 33.3 s** (predicted 20–30 s). App ready again 17:14:05 (instance 200, streaming
@@ -321,7 +321,7 @@ runtime must not guess from the container.
 
 ### Step 6a — Compose fork on ZFS (17:17 UTC)
 
-`benchmarks/mastodon/fork.sh 1` (`../snowglobe/vm/mkfork-generic.sh` with the fork map from the spec, port
+`benchmarks/mastodon/fork.sh 1` (`../sideworld/vm/mkfork-generic.sh` with the fork map from the spec, port
 offset +20000, project `md-f1`):
 
 | item | value |
@@ -345,10 +345,10 @@ whose 2 GB `shared_buffers` fill while it serves the probe, plus ~1 GB of Rails/
 
 ### Step 6b — Firecracker path (from 17:20 UTC)
 
-Rootfs: `../snowglobe/vm/app.sh … build` (generic builder, 6 images, `SIZE_MB=12288`) — 3 min the first
+Rootfs: `../sideworld/vm/app.sh … build` (generic builder, 6 images, `SIZE_MB=12288`) — 3 min the first
 time, 61 s the rebuild after the `shm_size` change (`docker save` on this Docker 29 writes
 compressed layers: 587 MB for 2.5 GB of images). Zvol: first attempt failed in 0.3 s —
-`../snowglobe/vm/app-zvol.sh` and `app-datasets.sh create` used `/<dataset-minus-tank>` (`/md-pg`) as the
+`../sideworld/vm/app-zvol.sh` and `app-datasets.sh create` used `/<dataset-minus-tank>` (`/md-pg`) as the
 mountpoint convention while everything else (`mkfork-generic`, the hand-made datasets, the
 compose binds) uses `/<dataset>` (`/tank/md-pg`); never exercised before because the datasets
 pre-existed. Fixed generically to `/$ds`; the empty 128 GiB zvol destroyed and rebuilt.
@@ -361,7 +361,7 @@ refers **59.9 GB at 1.68×** (16 KiB volblocks compress worse than the dataset's
 **Bake** (17:26, 1 m 29 s wall): scratch VM 9 loaded the 6 images and reached ready 80.5 s after
 its boot; image store 1.7 GB; rootfs promoted with **2,654 MiB used of 12,288**.
 
-**Boot 1** (17:27:52, `../snowglobe/vm/app.sh … boot 1`, 4 vCPU, **8,192 MiB**, `/dev/vdb` = clone of the zvol):
+**Boot 1** (17:27:52, `../sideworld/vm/app.sh … boot 1`, 4 vCPU, **8,192 MiB**, `/dev/vdb` = clone of the zvol):
 web `/health` 200 at **40.4 s**, guest self-report "all containers healthy" at **64.3 s**
 (native `up --wait` was 61.9 s: the VM costs nothing measurable here). Full readiness checked
 from the host + over ssh: instance 200, streaming OK, a status posted and its 4 jobs processed
@@ -369,7 +369,7 @@ in 2 s. Guest memory at ready: **2,307 MiB used + 991 MiB shared (Postgres' 2 GB
 `shared_buffers` as they fill) of 7,965; 5,658 available** — 8 GiB holds with room; it is the
 right size, not a floor to raise. `/data` 101 GB of 125 GB.
 
-**Snapshot 1 → `mdbase`** (17:29:48, `PREFAULT=1 ../snowglobe/vm/app.sh … snapshot 1 mdbase`, 18.3 s wall):
+**Snapshot 1 → `mdbase`** (17:29:48, `PREFAULT=1 ../sideworld/vm/app.sh … snapshot 1 mdbase`, 18.3 s wall):
 in-guest quiesce = Redis BGSAVE + Postgres CHECKPOINT + sync + `fsfreeze /data`; **pause 0.005 s,
 `/snapshot/create` 1.70 s, zfs snapshot 0.035 s, rootfs copy 4.34 s, resume 0.007 s;
 `/data` frozen → thawed 6.33 s**. Memory file 8,192 MiB apparent, **1,528 MiB allocated on
@@ -396,7 +396,7 @@ delta 1 MiB. Query changed to go through the admin's `(account_id, id)` index (s
 Compose `fork.sh`, whose 2,094 MiB cgroup figure includes the same scan's page cache); forks
 torn down; series 2 from fork 1 with the headroom rule enforced in the loop.
 
-**Series 2 — 10 forks of `mdbase`, 17:38:46–18:01 UTC** (`../snowglobe/vm/out/md-forks.csv`; each fork: restore, no requests for 120 s with PSS sampled at 10/60/120 s, then one status posted + Sidekiq checked + streaming health + storage delta):
+**Series 2 — 10 forks of `mdbase`, 17:38:46–18:01 UTC** (`../sideworld/vm/out/md-forks.csv`; each fork: restore, no requests for 120 s with PSS sampled at 10/60/120 s, then one status posted + Sidekiq checked + streaming health + storage delta):
 
 | fork | t_load | t_restore_to_api_response | PSS @10 s | @60 s | **@120 s** (anon / file) | RSS @120 | isolation | streaming | Sidekiq | storage Δ | host avail. after |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -419,13 +419,13 @@ torn down; series 2 from fork 1 with the headroom rule enforced in the loop.
 - **Ceiling: none reached.** 10 forks + source: host 35 GiB available of 62 (rule: ≥ 10). Memory says ~35 more forks at the idle marginal cost; the count ended at the target.
 - Predictions scored: t_restore 3–4 s warm → 2.43 s; PSS 600–900 MiB → 462 median (Sidekiq's polling did not double it); ≥ 10 forks → 10, measurement ended, not the rule.
 
-**Warm restore series** (`../snowglobe/vm/restore-series.sh`, new and generic: fork slot 11 / measure / unfork, ten
+**Warm restore series** (`../sideworld/vm/restore-series.sh`, new and generic: fork slot 11 / measure / unfork, ten
 times in a row, 18:03–18:04, with the ten sibling forks and the source alive):
 **t_restore_to_api_response p50 2.434 s, p95 2.479 s** (2.410–2.479), `t_load` p50 26 ms, p95 29 ms.
 Steady state equals the ten forks' own restores (p50 2.434 / p95 2.467) and the fresh-snapshot
 first restore (2.415 s): the memory file being pre-faulted, there is no variance left to
 measure — the TrainTicket 13–18 s cold case does not occur. Two tooling fixes on the way:
-`restore-series.sh` swallowed a failed unfork (now surfaced), and `../snowglobe/vm/unfork.sh` hit
+`restore-series.sh` swallowed a failed unfork (now surfaced), and `../sideworld/vm/unfork.sh` hit
 `cannot destroy … dataset is busy` — the zvol clone stays busy for a moment after firecracker
 exits; it now retries the destroy for up to 5 s (generic, default behaviour unchanged).
 
@@ -548,14 +548,14 @@ count at that point, and the list (c)–(f) marked "cannot reach it".
 ## Housekeeping left on disk (the deliverable and its inputs)
 
 `tank/md-pg`, `tank/md-redis`, `tank/md-system` with `@md-base` (43.4 GB referenced); the zvol
-`tank/md-vm-data@md-base` (60 GB); `../snowglobe/vm/out/md-rootfs.ext4` (12 GiB, baked), `../snowglobe/vm/out/snap-mdbase/`
+`tank/md-vm-data@md-base` (60 GB); `../sideworld/vm/out/md-rootfs.ext4` (12 GiB, baked), `../sideworld/vm/out/snap-mdbase/`
 (mem 8 GiB apparent, 1.5 GiB on disk — its ZFS side, `tank/md-vmfork1@mdbase`, went with the source
-VM's clone at teardown, so a new fork series starts with `boot 1` + `snapshot 1`), `../snowglobe/vm/out/md-*.log`,
+VM's clone at teardown, so a new fork series starts with `boot 1` + `snapshot 1`), `../sideworld/vm/out/md-*.log`,
 `md-forks.csv`, `md-forks-series1-aborted.csv`; the native `md` Compose project is **up** on
 3300/4300/8325; `/tank/work/mastodon` (checkout + `.env.production`, secrets, not committed) and the
 `mastodon-pr` worktree; images incl. `ghcr.io/mastodon/mastodon:v4.7.2-pr`. No `fc-*` network
 resources, no forks, no clones under `tank/md-f*`/`md-snapfork*`/`md-alt*` remain; KSM off; the
-specimen project untouched and `../snowglobe/vm/boot.sh 1` re-verified at 27.2 s.
+specimen project untouched and `../sideworld/vm/boot.sh 1` re-verified at 27.2 s.
 
 ## What broke
 
@@ -624,8 +624,8 @@ lesson:
 
 | | lines | files |
 |---|---|---|
-| **Generic, absorbed into `../snowglobe/vm/` this time** (from `git diff --numstat` and the new files) | **+190 / −1** — `app.sh` 27, `onboard-generic.sh` 34, `app-datasets.sh` 26, `app-snapshot-native.sh` 36, `app-zvol.sh` 24, `restore-series.sh` 19, `prefault.py` 13, `snapshot.sh` +9 (pre-fault), `unfork.sh` +2/−1 (busy retry) | 8 |
-| **Generic, beside `../snowglobe/vm/`** — the bulk-load profile every generator inherits | **58** — `benchmarks/lib/BULK-LOAD.md` 23, `pg-bulk-load-begin.sql` 6, `pg-bulk-load-end.sql` 29; plus 5 lines added to `../specimen/data/scale/README.md` and 2 to TrainTicket's `gen.sh` | 3 + 2 |
+| **Generic, absorbed into `../sideworld/vm/` this time** (from `git diff --numstat` and the new files) | **+190 / −1** — `app.sh` 27, `onboard-generic.sh` 34, `app-datasets.sh` 26, `app-snapshot-native.sh` 36, `app-zvol.sh` 24, `restore-series.sh` 19, `prefault.py` 13, `snapshot.sh` +9 (pre-fault), `unfork.sh` +2/−1 (busy retry) | 8 |
+| **Generic, beside `../sideworld/vm/`** — the bulk-load profile every generator inherits | **58** — `benchmarks/lib/BULK-LOAD.md` 23, `pg-bulk-load-begin.sql` 6, `pg-bulk-load-end.sql` 29; plus 5 lines added to `../specimen/data/scale/README.md` and 2 to TrainTicket's `gen.sh` | 3 + 2 |
 | **Mastodon-specific adapters** (`benchmarks/mastodon/`) | **812** — compose override 103 + `vm.env` 3, `gen.sql` 175 + `gen.sh` 50, `probes.sh` 64, `alt-baseline.sh` 53, `vm-fork-measure.sh` 71, `fork.sh` 47 + `unfork.sh` 14 + `fork.map` 4, `init-env.sh` 45, `probe.sh` 36, `migration.sh` 34, `pr-swap.sh` 32, `app.spec` 25, `init-app.sh` 14, `reset-db.sh` 13, `make-token.sh` 12, `md.sh` 9, `regen-feed.sh` 8 | 20 |
 | **Mastodon-specific lines inside the runtime** | **0** — Mastodon appears in four comments (`app-snapshot-native.sh`, `app-datasets.sh`, `onboard-generic.sh`) | — |
 | **Mastodon application changes** | **0** | — |
