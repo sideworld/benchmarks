@@ -1,6 +1,6 @@
 # benchmarks — how to reproduce every number
 
-The evidence for the fork runtime in `../micromonkis`, measured on the system in `../specimen` and on two
+The evidence for the fork runtime in `../snowglobe`, measured on the system in `../specimen` and on two
 foreign systems (TrainTicket, Mastodon). Every figure in these documents is measured; the ledgers say
 where, when, on what hardware, and with which commands. Nothing here is a product and nothing here runs
 the forks — this repository holds the write-ups, the per-system adapters (Compose overrides, readiness
@@ -46,9 +46,9 @@ The numbers were produced on one machine: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1
 | repo | pinned at | why |
 |---|---|---|
 | `../specimen` | `498b30e` (split point, 2026-09-22) | the system L1 measures; `make scale N=10000000` produced the 10M baseline (`../specimen/data/scale/README.md`), `make probe` the numbers in `../specimen/docs/PROBE-10M.md` |
-| `../micromonkis` | `2f67539` (split point, 2026-09-22) | the runtime every fork here ran on: `vm/` (Firecracker build, boot, snapshot, fork, measure), `vm/mkfork-generic.sh`, `vm/onboard-generic.sh`, `demo.sh` |
+| `../snowglobe` | `2f67539` (split point, 2026-09-22) | the runtime every fork here ran on: `vm/` (Firecracker build, boot, snapshot, fork, measure), `vm/mkfork-generic.sh`, `vm/onboard-generic.sh`, `demo.sh` |
 
-The adapters find the runtime through `MICROMONKIS_DIR` (default: `../micromonkis` relative to this
+The adapters find the runtime through `SNOWGLOBE_DIR` (default: `../snowglobe` relative to this
 repo's root) and the specimen through `SPECIMEN_DIR` (default `../specimen`). Set them if your layout
 differs.
 
@@ -57,9 +57,9 @@ differs.
 ```sh
 # L1 — the specimen at 10M rows, forked
 (cd ../specimen && make up && make scale N=10000000 SEED=42 TENANTS=5 && make probe)   # data + docs/PROBE-10M.md
-../micromonkis/vm/build-kernel.sh && ../micromonkis/vm/build-rootfs.sh && ../micromonkis/vm/bake-rootfs.sh
-../micromonkis/vm/boot.sh 1 && ../micromonkis/vm/snapshot.sh 1 base && ../micromonkis/vm/measure.sh base 5   # FORK-EXPERIMENT-2
-../micromonkis/vm/measure-mem.sh baseline6g 6144                                                              # FORK-EXPERIMENT-3
+../snowglobe/vm/build-kernel.sh && ../snowglobe/vm/build-rootfs.sh && ../snowglobe/vm/bake-rootfs.sh
+../snowglobe/vm/boot.sh 1 && ../snowglobe/vm/snapshot.sh 1 base && ../snowglobe/vm/measure.sh base 5   # FORK-EXPERIMENT-2
+../snowglobe/vm/measure-mem.sh baseline6g 6144                                                              # FORK-EXPERIMENT-3
 
 # L2 — TrainTicket, clone to a snapshotted VM with zero decisions (~10 min), then fork and swap a PR
 benchmarks/trainticket/onboard.sh
@@ -67,7 +67,7 @@ benchmarks/trainticket/vm-fork-measure.sh ttbase 1 --probe
 benchmarks/trainticket/pr-swap.sh 1
 
 # L3 — Mastodon, through the generic runbook driven by its spec
-../micromonkis/vm/onboard-generic.sh benchmarks/mastodon/app.spec
+../snowglobe/vm/onboard-generic.sh benchmarks/mastodon/app.spec
 benchmarks/mastodon/vm-fork-measure.sh mdbase 1
 ```
 

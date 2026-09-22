@@ -6,7 +6,7 @@
 #   benchmarks/mastodon/fork.sh <n> [snapshot]      (ports offset by 20000*n: web 23300, 43300, ...)
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-MICROMONKIS_DIR=${MICROMONKIS_DIR:-$(cd "$HERE/../../../micromonkis" 2>/dev/null && pwd || echo "$HERE/../../../micromonkis")}  # sibling checkout of the fork runtime
+SNOWGLOBE_DIR=${SNOWGLOBE_DIR:-$(cd "$HERE/../../../snowglobe" 2>/dev/null && pwd || echo "$HERE/../../../snowglobe")}  # sibling checkout of the fork runtime
 N=${1:?n}; SNAP=${2:-md-base}; MD=${MD_DIR:-/tank/work/mastodon}
 P=md-f$N; OFF=$((20000 * N)); OUT=$HERE/compose/docker-compose.$P.yml
 H=(-H "X-Forwarded-Proto: https" -H "Host: mastodon.test")
@@ -14,10 +14,10 @@ log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 dc() { docker compose -p "$P" --project-directory "$MD" -f "$MD/docker-compose.yml" -f "$HERE/compose/docker-compose.md.yml" -f "$OUT" "$@"; }
 
 log "fork $N from @$SNAP: clones + override (port offset +$OFF)"
-"$MICROMONKIS_DIR/vm/app-datasets.sh" "$HERE/app.spec" forkmap "tank/md-f{n}-" > "$HERE/fork.map"
+"$SNOWGLOBE_DIR/vm/app-datasets.sh" "$HERE/app.spec" forkmap "tank/md-f{n}-" > "$HERE/fork.map"
 t0=$(date +%s.%N)
 FORK_MAP=$HERE/fork.map OFFSET=$OFF PROJECT=$P OUT=$OUT \
-  "$MICROMONKIS_DIR/vm/mkfork-generic.sh" "$MD" "$N" "$SNAP" -f "$MD/docker-compose.yml" -f "$HERE/compose/docker-compose.md.yml" >/dev/null
+  "$SNOWGLOBE_DIR/vm/mkfork-generic.sh" "$MD" "$N" "$SNAP" -f "$MD/docker-compose.yml" -f "$HERE/compose/docker-compose.md.yml" >/dev/null
 t_clone=$(echo "$t0 $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}')
 n_clones=$(zfs list -H -o name -t filesystem | grep -c "^tank/md-f$N-")
 log "$n_clones clones + override in ${t_clone}s"
