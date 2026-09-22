@@ -16,13 +16,15 @@ TOK_HF=$(tok heavyfollower); TOK_U1=$(tok "$HEAVY")
 echo "== heavy account: $HEAVY ($(psql "select followers_count||' followers, '||statuses_count||' statuses' from account_stats where account_id=$HEAVY_ID"))"
 psql "ALTER SYSTEM SET log_min_duration_statement = '250ms'" >/dev/null; psql "SELECT pg_reload_conf()" >/dev/null   # two calls: ALTER SYSTEM refuses a transaction block
 since=$(date -u +%FT%T)
-bench() { # label, url, token
+bench() { # label, url, token   (ONLY=<substring> runs just the matching probes, e.g. ONLY=followers)
+  [ -z "${ONLY:-}" ] || [[ "$1" == *"$ONLY"* ]] || return 0
   local ts=(); for i in $(seq 1 "$N"); do ts+=("$(curl -s -m 60 -o /dev/null -w '%{http_code} %{time_total}' "${H[@]}" ${3:+-H "Authorization: Bearer $3"} "$2")"); done
   local codes; codes=$(printf '%s\n' "${ts[@]}" | awk '{print $1}' | sort | uniq -c | tr '\n' ' ')
   printf '%s\n' "${ts[@]}" | awk '{print $2*1000}' | sort -n | awk -v l="$1" -v c="$codes" '{a[NR]=$1} END{printf "  %-34s p50=%6.0f ms  p95=%6.0f ms  max=%6.0f ms  codes: %s\n", l, a[int((NR+1)/2)], a[NR-int((NR-1)*0.05)], a[NR], c}'
 }
 # a home feed missing from Redis is rebuilt by RegenerationWorker (206 until done) once a sign-in asks for
 # it; an API read alone serves 200 [] -- so ask for it the way a sign-in does, then time the rebuild
+if [ -z "${ONLY:-}" ] || [[ "home" == *"$ONLY"* ]]; then
 "$HERE/regen-feed.sh" heavyfollower >/dev/null
 t=$(date +%s.%N); code=; n=0
 for i in $(seq 1 600); do
@@ -33,6 +35,7 @@ except Exception: print(0)')
   [ "$code" = 200 ] && [ "$n" -gt 0 ] && break; sleep 0.5
 done
 echo "== home feed of heavyfollower (5000 followed, 5 of them mega): first 200 with $n statuses after $(echo "$t $(date +%s.%N)" | awk '{printf "%.1f", $2-$1}') s (last code $code)"
+fi
 echo "== $N requests each"
 bench "home timeline (heavyfollower)" "http://$HOST:$WEB/api/v1/timelines/home?limit=20" "$TOK_HF"
 bench "public timeline" "http://$HOST:$WEB/api/v1/timelines/public?limit=20&local=true" ""
