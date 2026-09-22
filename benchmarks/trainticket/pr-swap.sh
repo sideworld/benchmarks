@@ -4,9 +4,10 @@
 #   benchmarks/trainticket/pr-swap.sh <k>
 # Added after the repeat-onboarding run, in which these eight steps were done by hand.
 set -euo pipefail
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); REPO=$(cd "$HERE/../.." && pwd)
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MICROMONKIS_DIR=${MICROMONKIS_DIR:-$(cd "$HERE/../../../micromonkis" 2>/dev/null && pwd || echo "$HERE/../../../micromonkis")}  # sibling checkout of the fork runtime
 K=${1:?k}; KK=$(printf '%02d' "$K"); TT=${TT_DIR:-/tank/work/trainticket}; WT=$TT-pr
-SSH="ssh -p 3${KK}22 -i $REPO/vm/out/id_specimen_vm -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+SSH="ssh -p 3${KK}22 -i $MICROMONKIS_DIR/vm/out/id_specimen_vm -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 [ -d "$WT" ] || (cd "$TT" && git worktree add -q --detach "$WT" HEAD)
 sed -i 's|<title>TrainTicket Admin</title>|<title>TrainTicket Admin (PR-1 build)</title>|' "$WT/ts-ui-dashboard/static/index.html"
 t0=$(date +%s.%N)

@@ -4,7 +4,8 @@
 # vm/out/tt-*, tank/tt-*, /run/fc-tt*.
 #   benchmarks/trainticket/vm.sh build|bake|boot|stop|snapshot|fork|unfork|net-ns ARGS...
 set -euo pipefail
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); REPO=$(cd "$HERE/../.." && pwd)
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MICROMONKIS_DIR=${MICROMONKIS_DIR:-$(cd "$HERE/../../../micromonkis" 2>/dev/null && pwd || echo "$HERE/../../../micromonkis")}  # sibling checkout of the fork runtime
 cmd=${1:?cmd}; shift
 export APP=tt
 export APP_DIR=/tank/work/trainticket
@@ -12,7 +13,7 @@ export COMPOSE_FILES="/tank/work/trainticket/docker-compose.yml $HERE/compose/do
 export ENV_FILE=$HERE/compose/tt.env
 export DATA_MAP=$HERE/vm-data.map
 export SIZE_MB=${SIZE_MB:-24576}
-export ROOTFS_IMG=$REPO/vm/out/tt-rootfs.ext4
+export ROOTFS_IMG=$MICROMONKIS_DIR/vm/out/tt-rootfs.ext4
 export SNAPSHOT=tank/tt-vm-data@tt-base
 export CLONE_PREFIX=tank/tt-vmfork
 export SNAPFORK_PREFIX=tank/tt-snapfork
@@ -22,13 +23,13 @@ export GUEST_PORTS="8080 12340 12346 12347"          # ui, auth, travel, contact
 export APP_UNIT=app.service APP_DIR_GUEST=/opt/app
 export MEM_MIB=${MEM_MIB:-24576} VCPUS=${VCPUS:-8}
 case "$cmd" in
-  build)  exec "$REPO/vm/build-rootfs-generic.sh" "$@" ;;
-  bake)   FC_ID=tt${1:-9} READY_WAIT=${READY_WAIT:-1500} exec "$REPO/vm/bake-rootfs.sh" "$@" ;;   # TT's UI answers long before its JVMs
-  boot)   FC_ID=tt$1 exec "$REPO/vm/boot.sh" "$@" ;;
-  stop)   FC_ID=tt$1 exec "$REPO/vm/stop.sh" "$@" ;;
-  snapshot) FC_ID=tt$1 exec "$REPO/vm/snapshot.sh" "$@" ;;
-  fork)   exec "$REPO/vm/fork.sh" "$@" ;;
-  unfork) exec "$REPO/vm/unfork.sh" "$@" ;;
-  net-ns) exec "$REPO/vm/net-ns.sh" "$@" ;;
+  build)  exec "$MICROMONKIS_DIR/vm/build-rootfs-generic.sh" "$@" ;;
+  bake)   FC_ID=tt${1:-9} READY_WAIT=${READY_WAIT:-1500} exec "$MICROMONKIS_DIR/vm/bake-rootfs.sh" "$@" ;;   # TT's UI answers long before its JVMs
+  boot)   FC_ID=tt$1 exec "$MICROMONKIS_DIR/vm/boot.sh" "$@" ;;
+  stop)   FC_ID=tt$1 exec "$MICROMONKIS_DIR/vm/stop.sh" "$@" ;;
+  snapshot) FC_ID=tt$1 exec "$MICROMONKIS_DIR/vm/snapshot.sh" "$@" ;;
+  fork)   exec "$MICROMONKIS_DIR/vm/fork.sh" "$@" ;;
+  unfork) exec "$MICROMONKIS_DIR/vm/unfork.sh" "$@" ;;
+  net-ns) exec "$MICROMONKIS_DIR/vm/net-ns.sh" "$@" ;;
   *) echo "unknown: $cmd" >&2; exit 2 ;;
 esac

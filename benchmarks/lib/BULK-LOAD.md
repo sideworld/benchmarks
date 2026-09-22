@@ -1,7 +1,11 @@
 # Bulk-load profile (generic, all generators)
 
+> **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
+> `../specimen/` or `../micromonkis/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `MICROMONKIS_DIR` in the scripts). Paths without that prefix are in this repo.
+
 What every data-plane generator in this repo does around its load, regardless of store. The
-specimen's Go generator (`data/scale`), TrainTicket's Mongo generator (`benchmarks/trainticket/scale`)
+specimen's Go generator (`../specimen/data/scale`), TrainTicket's Mongo generator (`benchmarks/trainticket/scale`)
 and Mastodon's SQL generator (`benchmarks/mastodon/scale`) follow it; the Postgres half is code
 (`pg-bulk-load-begin.sql` / `pg-bulk-load-end.sql`, concatenated around the generator's SQL).
 

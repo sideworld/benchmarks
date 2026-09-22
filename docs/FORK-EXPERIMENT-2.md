@@ -1,9 +1,13 @@
 # FORK-EXPERIMENT-2 — Firecracker snapshot/restore forks
 
+> **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
+> `../specimen/` or `../micromonkis/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `MICROMONKIS_DIR` in the scripts). Paths without that prefix are in this repo.
+
 Second fork experiment, 2026-09-21, same box: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1 TB NVMe,
 Ubuntu 24.04 (host kernel 6.8.0-139), Firecracker v1.17.0, guest kernel 6.1.188. Baseline data:
 `tank/vm-data@clean2`, a 40 GB zvol holding the 10M-row load (13.3 GB referenced, 4,000,202
-conversations in `conv_acme`). Branch: **main**. Tooling: `vm/`, see `vm/README.md`.
+conversations in `conv_acme`). Branch: **main**. Tooling: `../micromonkis/vm/`, see `../micromonkis/vm/README.md`.
 
 Experiment 1 forked the *data* and booted a fresh Compose project on top of it. This one forks the
 *running machine*: a booted, healthy microVM is snapshotted once, and every fork after that is a
@@ -14,10 +18,10 @@ memory-file mmap plus a `zfs clone`.
 | step | how |
 |------|-----|
 | 1. golden rootfs | `build-rootfs.sh` (debootstrap noble + Docker + the compose project + `docker save` of all 11 images), then `bake-rootfs.sh` boots it once, loads the images, shuts down cleanly and adopts that disk |
-| 2. boot | `vm/boot.sh 1` — 4 vCPU, 6,144 MiB, `/dev/vdb` = `zfs clone` of `tank/vm-data@clean2` |
-| 3. snapshot | `vm/snapshot.sh 1 base` — `CHECKPOINT` every Postgres, `sync`, `fsfreeze -f /data`, pause, `PUT /snapshot/create`, `zfs snapshot`, copy the root disk, resume, thaw |
-| 4. fork | `vm/fork.sh base <k>` — `zfs clone` the data snapshot, reflink the root disk, build a netns, `PUT /snapshot/load` with `resume_vm:false`, repoint both drives, resume, `post-restore` |
-| 5. measure | `vm/measure.sh base 5` → `vm/out/measure-base.csv` |
+| 2. boot | `../micromonkis/vm/boot.sh 1` — 4 vCPU, 6,144 MiB, `/dev/vdb` = `zfs clone` of `tank/vm-data@clean2` |
+| 3. snapshot | `../micromonkis/vm/snapshot.sh 1 base` — `CHECKPOINT` every Postgres, `sync`, `fsfreeze -f /data`, pause, `PUT /snapshot/create`, `zfs snapshot`, copy the root disk, resume, thaw |
+| 4. fork | `../micromonkis/vm/fork.sh base <k>` — `zfs clone` the data snapshot, reflink the root disk, build a netns, `PUT /snapshot/load` with `resume_vm:false`, repoint both drives, resume, `post-restore` |
+| 5. measure | `../micromonkis/vm/measure.sh base 5` → `../micromonkis/vm/out/measure-base.csv` |
 
 ## Results
 
@@ -25,7 +29,7 @@ memory-file mmap plus a `zfs clone`.
 |-------------|------:|
 | cold `docker compose up --wait` on metal, empty databases (experiment 1) | 31.9 s |
 | Compose + ZFS fork of the 10M baseline on metal (experiment 1) | 43.5 s |
-| microVM cold boot to healthy (`vm/boot.sh`, baked rootfs; Phase 1 measurement, `vm/README.md`) | 27.2 s |
+| microVM cold boot to healthy (`../micromonkis/vm/boot.sh`, baked rootfs; Phase 1 measurement, `../micromonkis/vm/README.md`) | 27.2 s |
 | **`t_load`** — `/snapshot/load` + 2 × `PATCH /drives` + resume | **0.025 s** |
 | **`t_restore_to_api_response`** — firecracker exec to first HTTP 200 | **2.4 s** |
 | `t_quiesce_pause` — `/data` frozen to thawed | 5.8 s |
@@ -35,7 +39,7 @@ memory-file mmap plus a `zfs clone`.
 | memory file, 6,144 MiB guest | 6,442,450,944 B apparent, ~750 MiB allocated |
 | vmstate | 50,394 B |
 
-Per fork, from `vm/out/measure-base.csv`:
+Per fork, from `../micromonkis/vm/out/measure-base.csv`:
 
 | fork | port | t_load | t_restore_to_api_response | t_clock_ok | pss_mb | rss_mb |
 |---|---|---|---|---|---|---|

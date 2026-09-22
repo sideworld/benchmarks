@@ -1,9 +1,13 @@
 # FORK-EXPERIMENT-3 — where a fork's memory goes
 
+> **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
+> `../specimen/` or `../micromonkis/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `MICROMONKIS_DIR` in the scripts). Paths without that prefix are in this repo.
+
 Third fork experiment, 2026-09-21, same box: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1 TB NVMe, Ubuntu
 24.04 (host kernel 6.8.0-139), Firecracker v1.17.0, guest kernel 6.1.188. Same baseline data as
 experiment 2: `tank/vm-data@clean2`, 13.3 GB referenced, 4,000,202 conversations in `conv_acme`.
-Branch: **main**. Tooling: `vm/measure-mem.sh`.
+Branch: **main**. Tooling: `../micromonkis/vm/measure-mem.sh`.
 
 Experiment 2 forked a running machine in 2.4 s and left one number looking wrong: five idle forks of a
 6,144 MiB guest cost 9.2 GB of PSS. Time was nearly free and memory was not, which caps density at
@@ -20,7 +24,7 @@ sum-across-forks-1..k immediately after each fork turns healthy, so the marginal
 measured quantity rather than a subtraction of two unrelated moments, and it probes inside fork 1 for
 `docker stats` and the guest's own `memory.stat`.
 
-Series in `vm/out/measure-mem-<variant>.csv`, roll-up in `vm/out/measure-mem-summary.csv`.
+Series in `../micromonkis/vm/out/measure-mem-<variant>.csv`, roll-up in `../micromonkis/vm/out/measure-mem-summary.csv`.
 
 ## The first result is a correction to experiment 2
 
@@ -97,7 +101,7 @@ Pre-touched and stable is free. Churn is what costs. Which is also why experimen
 
 ## Hypothesis 3 — deduplication. It works, and it is not dependable.
 
-`vm/ksm-exec` calls `prctl(PR_SET_MEMORY_MERGE, 1)` and `execv`s firecracker. The flag survives the
+`../micromonkis/vm/ksm-exec` calls `prctl(PR_SET_MEMORY_MERGE, 1)` and `execv`s firecracker. The flag survives the
 exec (`MMF_VM_MERGE_ANY` is in `MMF_INIT_MASK`, and 6.7+ re-registers the new mm from `ksm_execve`),
 and every fork shows 58 mergeable VMAs including the 2 GiB guest-RAM mapping — which is a `MAP_PRIVATE`
 mapping of the snapshot's memory file, so its clean pages are shared page cache already and only the
@@ -164,7 +168,7 @@ JAVA_TOOL_OPTIONS: ..."), which is the only reason the mistake would be caught.
 
 **`bake-rootfs.sh` had no cleanup path**, so that failed boot stranded slot 9's clone, tap and rootfs
 copy for twelve minutes. It traps EXIT and runs `stop.sh` now. `build-rootfs.sh` also keeps the image
-it replaces as `vm/out/rootfs.prev.ext4`.
+it replaces as `../micromonkis/vm/out/rootfs.prev.ext4`.
 
 **Two of ours.** `PSSCUM[NFORKS]` inside `$(( ))` looks up the literal key `NFORKS` in an associative
 array, so the marginal cost came out as −1,871 MB on the first run. And `t_quiesce_pause`'s trailing

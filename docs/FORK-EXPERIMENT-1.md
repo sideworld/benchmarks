@@ -1,15 +1,19 @@
 # FORK-EXPERIMENT-1 — three concurrent forks of the 10M-row baseline
 
+> **Paths.** This document was written in a monorepo that has since been split. Paths beginning with
+> `../specimen/` or `../micromonkis/` point into the sibling repositories, expected to be checked out
+> next to this one (`SPECIMEN_DIR` / `MICROMONKIS_DIR` in the scripts). Paths without that prefix are in this repo.
+
 First fork experiment, 2026-09-21, on the box: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1 TB NVMe, Ubuntu
 24.04, Postgres and Kafka data on ZFS (lz4, `ashift=12`). Baseline: the 10M-conversation load from
-`data/scale/README.md`, snapshotted as `tank@baseline-10m` (13.2 GB on disk). Branch: **main**.
+`../specimen/data/scale/README.md`, snapshotted as `tank@baseline-10m` (13.2 GB on disk). Branch: **main**.
 
 ## Method
 
 | step | how |
 |------|-----|
 | 1. fork state | `zfs clone` of the five datasets (`pg-gateway`, `pg-conversations`, `pg-assignments`, `pg-billing`, `kafka`) from `tank@baseline-10m` |
-| 2. fork config | a generated per-fork Compose override (`mkfork.sh` + `mkfork.py`) that bind-mounts the clones, offsets every published port by N×1000, and renames the networks per project |
+| 2. fork config | a generated per-fork Compose override (`../micromonkis/mkfork.sh` + `../micromonkis/mkfork.py`) that bind-mounts the clones, offsets every published port by N×1000, and renames the networks per project |
 | 3. boot | `docker compose -p forkN up --wait` |
 
 `docker-compose.fork1.yml` is committed as an example of the generated override; the others are
@@ -113,7 +117,7 @@ FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC, id ASC
 ```
 
 This is the same missing `messages(conversation_id, created_at)` index as probe 3
-(`docs/PROBE-10M.md`), now hit on **every create and every assign**, because both handlers re-read the
+(`../specimen/docs/PROBE-10M.md`), now hit on **every create and every assign**, because both handlers re-read the
 conversation with its messages to build the response. Two seconds alone, nine under concurrency, and
 the gateway's 10 s upstream timeout turns it into a 502. On the 200-row seed the same suite passes in
 ~2 s.
@@ -157,7 +161,7 @@ after a clean shutdown.
 | 1. quiesce | on the baseline project: `docker compose stop gateway-db conversations-db assignments-db billing-db kafka` (clean shutdown: Postgres writes its shutdown checkpoint, Kafka flushes and closes its logs) |
 | 2. snapshot | `zfs snapshot -r tank@baseline-10m-clean` |
 | 3. resume | restart the stopped services |
-| 4. fork | `SNAP=baseline-10m-clean ./mkfork.sh 1` — `mkfork.sh` now takes `SNAP=<snapshot>` (default `baseline-10m`) to select the clone origin — then `docker compose -p fork1 … up --wait` |
+| 4. fork | `SNAP=baseline-10m-clean ./mkfork.sh 1` — `../micromonkis/mkfork.sh` now takes `SNAP=<snapshot>` (default `baseline-10m`) to select the clone origin — then `docker compose -p fork1 … up --wait` |
 
 ## Results, fork1 from the clean snapshot
 
