@@ -14,3 +14,9 @@ benchmarks/*/.token*
 # the captured index DDL a generator replays). Not secrets, but not evidence either.
 benchmarks/*/.core-*
 benchmarks/*/scale/.posts-indexes.sql
+# PostHog adapter: the project id and the per-project ingestion tokens the core script minted
+benchmarks/*/.project
+benchmarks/*/.projects
+# PostHog: the installer-shaped env files carry this box's throwaway secrets; make-env.sh regenerates them
+benchmarks/posthog/compose/hobby.env
+benchmarks/posthog/compose/vm.env

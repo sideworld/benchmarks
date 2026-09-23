@@ -1,0 +1,63 @@
+# Sideworld's override for PostHog hobby. Datasets, ports, sinks, and the two upstream facts a
+# clean install cannot get past today. Nothing here changes what PostHog runs, only where its
+# bytes live and where its outbound calls go.
+services:
+  # ---------------------------------------------------------------- state -> ZFS datasets
+  db:
+    volumes: ["/tank/ph-pg:/var/lib/postgresql/data"]
+    # Docker's 64 MB /dev/shm kills a parallel VACUUM at scale (Mattermost, 2026-09-23).
+    shm_size: 1gb
+  clickhouse:
+    volumes: ["/tank/ph-ch:/var/lib/clickhouse"]
+  zookeeper:
+    # ClickHouse's replicated tables keep their coordination state HERE. A ClickHouse snapshot
+    # without it is not restorable. Two datasets: the snapshot store and the transaction log.
+    volumes: ["/tank/ph-zk:/data", "/tank/ph-zklog:/datalog"]
+  kafka:
+    # The hobby file adds `kafka-data:/bitnami/kafka`, a Bitnami-era path Redpanda never writes;
+    # the real data is the base file's /var/lib/redpanda/data. Bound here, by target.
+    volumes: ["/tank/ph-kafka:/var/lib/redpanda/data"]
+  redis7:
+    volumes: ["/tank/ph-redis:/data"]
+  objectstorage:
+    # docker.io/minio/minio has been withdrawn (zero tags); the pin is unchanged, the registry is not.
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    volumes: ["/tank/ph-minio:/data"]
+    ports: !override ["127.0.0.1:19100:19000", "127.0.0.1:19101:19001"]
+  seaweedfs:
+    volumes: ["/tank/ph-seaweedfs:/data"]
+    ports: !override ["127.0.0.1:8433:8333", "127.0.0.1:9433:9333"]
+  # ---------------------------------------------------------------- front door, plain http
+  proxy:
+    ports: !override ["${PH_BIND:-127.0.0.1}:${PH_PORT:-8100}:80"]
+  temporal:
+    ports: !override ["127.0.0.1:7333:7233"]
+  temporal-ui:
+    ports: !override ["127.0.0.1:8181:8080"]
+  # ---------------------------------------------------------------- outbound -> sinks
+  web:
+    environment: &sideworld_env
+      SITE_URL: "${PH_SITE_URL:-http://localhost:8100}"
+      OBJECT_STORAGE_PUBLIC_ENDPOINT: "${PH_SITE_URL:-http://localhost:8100}"
+      # the in-app SDK reports to us.i.posthog.com unless told not to
+      OPT_OUT_CAPTURE: "true"
+      # email: the base file already ships a maildev sink; point at it instead of "" (= silently dropped)
+      EMAIL_ENABLED: "true"
+      EMAIL_HOST: "maildev"
+      EMAIL_PORT: "1025"
+      EMAIL_USE_TLS: "false"
+      DEFAULT_FROM_EMAIL: "posthog@sideworld.test"
+      # keys that are blank in .env anyway; explicit so nothing dials an AI provider
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+  worker:
+    environment: *sideworld_env
+  temporal-django-worker:
+    environment: *sideworld_env
+  plugins:
+    environment:
+      SITE_URL: "${PH_SITE_URL:-http://localhost:8100}"
+      OBJECT_STORAGE_PUBLIC_ENDPOINT: "${PH_SITE_URL:-http://localhost:8100}"
+  maildev:
+    extends: {file: docker-compose.base.yml, service: maildev}
+    ports: !override ["127.0.0.1:1180:1080"]
