@@ -10,3 +10,7 @@ benchmarks/*/compose/docker-compose.*-f*.yml
 benchmarks/*/.token*
 # TrainTicket's fork.map is committed (hand-written); keep it
 !benchmarks/trainticket/fork.map
+# per-run state the adapters write beside themselves (ids of the core objects they created,
+# the captured index DDL a generator replays). Not secrets, but not evidence either.
+benchmarks/*/.core-*
+benchmarks/*/scale/.posts-indexes.sql

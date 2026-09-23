@@ -1,0 +1,189 @@
+# Sideworld's Mattermost world: Postgres + MinIO + Inbucket + the server.
+#
+# Why this file rather than server/build/docker-compose.yml directly:
+#   - that file is a *developer test harness*, not a deployment. It starts fourteen services (two
+#     search engines that must be built from Dockerfiles, Keycloak, OpenLDAP, Azurite,
+#     Prometheus/Grafana/Loki/OTel, dejavu) and contains no Mattermost server at all — the dev
+#     workflow runs the server on the host with `make run-server`.
+#   - its postgres has `tmpfs: /var/lib/postgresql/data`, so the database is deliberately
+#     volatile. A world whose bytes must survive a snapshot cannot use it.
+#
+# Why it is SELF-CONTAINED — no `extends:`, no bind mounts:
+#   A first version pulled postgres/minio/inbucket out of their docker-compose.common.yml with
+#   `extends:` and mounted a postgres.conf. Both break inside the microVM. The rootfs builder
+#   copies compose files into the guest by basename, so an `extends: file:` target is simply not
+#   there; and it copies bind sources only when they live under APP_DIR, so a conf file kept
+#   beside this one is silently missing and the container dies at `runc create`. That is the same
+#   failure Sentry hit. Everything is therefore inlined, and the Postgres settings are passed as
+#   `-c` flags rather than mounted.
+#
+# The image tags and environment below are copied from Mattermost's
+# server/build/docker-compose.common.yml at v11.11.0. `benchmarks/mattermost/check-upstream.sh`
+# diffs them against that file so the copy cannot drift silently.
+#
+# Host ports 5434 / 9110 / 9011 / 8065: the obvious choices were already taken by worlds running
+# on this box (9100 by the specimen's stripe-fake, 5433 by a host postgres), and Docker reports
+# that only as "port is already allocated" during `up`. Checked, not guessed.
+
+services:
+  postgres:
+    container_name: mm-postgres
+    image: "postgres:14"
+    restart: always
+    # Docker gives a container 64 MB of /dev/shm. Postgres puts parallel workers' shared
+    # tuplestores there, so at 20 million rows `VACUUM (ANALYZE)` dies with
+    #   could not resize shared memory segment "/PostgreSQL.681843462" to 536907840 bytes:
+    #   No space left on device
+    # It is invisible at fixture scale: nothing plans a parallel scan over 500 rows.
+    # Mattermost's own compose does not set this either.
+    shm_size: 1gb
+    networks: [mm-test]
+    environment:
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mostest_password
+      POSTGRES_DB: mattermost_test
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    # NOT their docker/postgres.conf. Theirs is a test-harness config with `fsync = off` and
+    # `full_page_writes = off` — correct for a database that is thrown away, wrong for one whose
+    # whole point is that its bytes survive a snapshot and a restore. These numbers are sized so
+    # the SAME settings are valid natively and inside a 4 GiB guest, because the guest runs them
+    # too, and a probe measured under one configuration and served under another is not a
+    # measurement.
+    command: >
+      postgres
+      -c listen_addresses=*
+      -c max_connections=300
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c work_mem=32MB
+      -c maintenance_work_mem=512MB
+      -c default_text_search_config=pg_catalog.english
+      -c password_encryption=scram-sha-256
+      -c wal_compression=on
+      -c max_wal_size=4GB
+      -c min_wal_size=512MB
+      -c checkpoint_completion_target=0.9
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c logging_collector=off
+      -c log_min_duration_statement=2000
+      -c track_io_timing=on
+    volumes:
+      - "/tank/mm-pg:/var/lib/postgresql/data"
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-U", "mmuser"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  minio:
+    container_name: mm-minio
+    # docker.io/minio/minio has been withdrawn: that repository now lists ZERO tags, so a clean
+    # clone of v11.11.0 cannot start its own test harness. The identical tag is still published
+    # on quay.io. Only the registry changed; the pin is theirs.
+    image: "quay.io/minio/minio:RELEASE.2024-06-22T05-26-45Z"
+    command: "server /data --console-address :9002"
+    networks: [mm-test]
+    environment:
+      MINIO_ROOT_USER: minioaccesskey
+      MINIO_ROOT_PASSWORD: miniosecretkey
+      MINIO_KMS_SECRET_KEY: my-minio-key:OSMM+vkKUTCvQs9YL/CVMIMt43HFhkUpqJxTmGl6rYw=
+    volumes:
+      - "/tank/mm-minio:/data"
+    ports:
+      - "127.0.0.1:9110:9000"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  inbucket:
+    container_name: mm-inbucket
+    image: "inbucket/inbucket:3.1.1"
+    restart: always
+    networks: [mm-test]
+    environment:
+      INBUCKET_WEB_ADDR: "0.0.0.0:9001"
+      INBUCKET_POP3_ADDR: "0.0.0.0:10110"
+      INBUCKET_SMTP_ADDR: "0.0.0.0:10025"
+    ports:
+      - "127.0.0.1:9011:9001"
+    # busybox nc in this image has no -z and there is no curl: `nc -z` reported unhealthy for two
+    # minutes while the SMTP port was open the whole time.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9001/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mattermost:
+    container_name: mm-server
+    image: "${MM_SERVER_IMAGE:-sideworld/mattermost-server:v11.11.0}"
+    networks: [mm-test]
+    restart: always
+    depends_on:
+      postgres: {condition: service_healthy}
+      minio:    {condition: service_healthy}
+      inbucket: {condition: service_started}
+    ports:
+      - "${MM_BIND:-127.0.0.1}:8065:8065"
+    environment:
+      # Configuration lives in Postgres, not in a config.json on a volume, so the whole
+      # configuration is inside the one dataset the snapshot already covers.
+      MM_CONFIG: "postgres://mmuser:mostest_password@postgres:5432/mattermost_test?sslmode=disable&connect_timeout=10"
+      MM_SQLSETTINGS_DRIVERNAME: "postgres"
+      MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:mostest_password@postgres:5432/mattermost_test?sslmode=disable&connect_timeout=10"
+      MM_SQLSETTINGS_MAXIDLECONNS: "20"
+      MM_SQLSETTINGS_MAXOPENCONNS: "100"
+      MM_SERVICESETTINGS_SITEURL: "${MM_SITE_URL:-http://localhost:8065}"
+      MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      # a personal access token survives a snapshot restore; a session cookie does not
+      MM_SERVICESETTINGS_ENABLEUSERACCESSTOKENS: "true"
+      MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
+      MM_SERVICESETTINGS_ENABLETESTING: "false"
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "true"
+      MM_TEAMSETTINGS_MAXUSERSPERTEAM: "100000"
+      MM_TEAMSETTINGS_MAXCHANNELSPERTEAM: "100000"
+      # Files go to MinIO, so FileInfo rows address object storage rather than a local directory.
+      MM_FILESETTINGS_DRIVERNAME: "amazons3"
+      MM_FILESETTINGS_AMAZONS3ACCESSKEYID: "minioaccesskey"
+      MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY: "miniosecretkey"
+      MM_FILESETTINGS_AMAZONS3BUCKET: "mattermost-files"
+      MM_FILESETTINGS_AMAZONS3ENDPOINT: "minio:9000"
+      MM_FILESETTINGS_AMAZONS3SSL: "false"
+      MM_EMAILSETTINGS_SMTPSERVER: "inbucket"
+      MM_EMAILSETTINGS_SMTPPORT: "10025"
+      MM_EMAILSETTINGS_CONNECTIONSECURITY: ""
+      MM_EMAILSETTINGS_ENABLESMTPAUTH: "false"
+      MM_EMAILSETTINGS_REQUIREEMAILVERIFICATION: "false"
+      # Twenty million posts would otherwise queue millions of notification emails at the SMTP
+      # sink. Off deliberately; recorded in the ledger.
+      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "false"
+      # Prepackaged plugins (playbooks, calls, …) are not part of what is being measured and cost
+      # startup time and memory in a 4 GiB guest. Off deliberately; recorded in the ledger.
+      MM_PLUGINSETTINGS_ENABLE: "false"
+      MM_PLUGINSETTINGS_ENABLEUPLOADS: "false"
+      MM_LOGSETTINGS_ENABLECONSOLE: "true"
+      MM_LOGSETTINGS_CONSOLELEVEL: "INFO"
+      MM_LOGSETTINGS_ENABLEFILE: "false"
+    volumes:
+      - mm-data:/mattermost/data
+      - mm-logs:/mattermost/logs
+    healthcheck:
+      test: ["CMD", "/mattermost/bin/mmctl", "system", "status", "--local"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 20s
+
+networks:
+  mm-test:
+    driver: bridge
+
+volumes:
+  mm-data:
+  mm-logs:
