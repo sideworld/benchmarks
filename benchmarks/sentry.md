@@ -489,7 +489,19 @@ suite's assumptions.
 | PR | change | result |
 |---|---|---|
 | #1 `ci/pr-1-marker` | a build marker in `sentry/Dockerfile` | 🟢 **6/6, 33.3 s total** — restore 3.7 s, swap 18.6 s, suite 8.6 s |
+| #1 again, **on github.com** | the same branch, through a real GitHub Actions runner | 🟢 **6/6, 34.5 s** — restore 3.7 s, swap 18.7 s, suite 8.8 s. [`sideworld/self-hosted` #1](https://github.com/sideworld/self-hosted/pull/1#issuecomment-5788663922) |
 | #2 `ci/pr-2-break-web` | appends `raise RuntimeError` to Sentry's base settings module | 🔴 the fork never came back healthy after the swap |
+
+**The green one now exists on github.com** (2026-09-23): `sideworld/self-hosted` #1, through a real
+GitHub Actions runner, 34.5 s, 6/6. The red is deliberately not opened there — it reports "the run
+did not complete" rather than naming a failing check, and a red comment that is not obviously right
+is worse than no red comment. `sideworld/train-ticket` #2 already demonstrates the red path.
+
+Getting the run to fire at all took one correction worth recording: GitHub lists a repository's
+workflows **from its default branch only**. With `sideworld.yml` pushed on the pinned branch but
+not on the fork's `master`, opening the pull request produced no run and no error — the Actions tab
+showed the seven workflows inherited from `getsentry/self-hosted`. Repointing the fork's default
+branch at the pinned branch fixed it. Nothing was force-pushed.
 
 Two findings from getting the red one to be red:
 
