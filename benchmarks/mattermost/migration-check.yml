@@ -1,0 +1,55 @@
+# Migration Check adapter -- Mattermost v11.11.0 at 19,999,054 posts: their own migration 000102,
+# a plain (non-CONCURRENT) CREATE INDEX on Posts, replayed against a fork of the CI baseline under load.
+label: "000102_posts_originalid_index — CREATE INDEX idx_posts_original_id ON Posts(originalid), not CONCURRENTLY"
+file: server/channels/db/migrations/postgres/000102_posts_originalid_index.up.sql
+table: posts
+db_exec: docker exec -i -e PGPASSWORD=mostest_password mm-postgres psql -U mmuser -d mattermost_test -X
+smoke: smoke
+# the migration is already applied in the baseline (it ran at first boot); drop it on the fresh fork so
+# the replay builds it for real, before anything is measured
+prepare:
+  - DROP INDEX IF EXISTS idx_posts_original_id
+naive:
+  transaction: false
+  statements:
+    - sql: CREATE INDEX IF NOT EXISTS idx_posts_original_id ON Posts(originalid)
+safe:
+  description: "CREATE INDEX CONCURRENTLY: ShareUpdateExclusive only, writes continue"
+  transaction: false
+  statements:
+    - sql: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_posts_original_id ON Posts(originalid)
+estimated_rewrite:
+  rewrites_every_row: false
+  bytes: 138412032
+  basis: "an index build writes a new index, not the heap: 132 MB measured for this index on 20M rows"
+explain:
+  - name: channel_history_page1
+    sql: SELECT * FROM posts WHERE channelid = (SELECT id FROM channels ORDER BY totalmsgcount DESC LIMIT 1) AND deleteat = 0 ORDER BY createat DESC LIMIT 60
+  - name: posts_by_original_id
+    sql: SELECT id FROM posts WHERE originalid = 'mc-probe-no-such-post-id-000000000' LIMIT 10   # the lookup the index exists for; the fixture has no edited posts, so a literal id
+  - name: search_deployment
+    sql: SELECT id FROM posts WHERE to_tsvector('english', message) @@ plainto_tsquery('english', 'deployment') AND deleteat = 0 ORDER BY createat DESC LIMIT 20
+auth: |
+  TOK=$(cat "$BENCHMARKS_DIR/benchmarks/mattermost/.token"); TEAM=$(cat "$BENCHMARKS_DIR/benchmarks/mattermost/.core-team")
+  CH=$(curl -s -m 30 -H "Authorization: Bearer $TOK" "http://127.0.0.1:$CI_PORT_HTTP/api/v4/teams/$TEAM/channels/name/gen-1" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
+  echo "TOKEN=$TOK"; echo "PID=$CH"; echo "TEAM=$TEAM"
+probes:
+  - name: history_page1
+    url: http://127.0.0.1:${PORT}/api/v4/channels/${PID}/posts?per_page=60
+    headers: {Authorization: "Bearer ${TOKEN}"}
+  - name: history_deep
+    url: http://127.0.0.1:${PORT}/api/v4/channels/${PID}/posts?per_page=60&page=19416
+    headers: {Authorization: "Bearer ${TOKEN}"}
+  - name: search
+    method: POST
+    url: http://127.0.0.1:${PORT}/api/v4/teams/${TEAM}/posts/search
+    headers: {Authorization: "Bearer ${TOKEN}", Content-Type: application/json}
+    body: '{"terms":"deployment","is_or_search":false,"per_page":20}'
+  - name: post_message
+    method: POST
+    url: http://127.0.0.1:${PORT}/api/v4/posts
+    headers: {Authorization: "Bearer ${TOKEN}", Content-Type: application/json}
+    body: '{"channel_id":"${PID}","message":"migration check probe"}'
+new_image_note: "a migration from their own history; the v11.11.0 image already matches the schema and is recreated for the second smoke"
+notes:
+  - "Workload: 4 probes round-robin as the admin; one of them writes a post into the busiest channel, i.e. an INSERT into Posts while the index builds."

@@ -1,0 +1,103 @@
+# Migration Check adapter -- the specimen's scenario B: messages.sentiment, the 12.5-minute migration.
+# Everything here is executed by ops/migration-check.sh against a Firecracker fork of the CI baseline
+# (10,000,000 conversations; tenant acme's messages table is the one it rewrites).
+label: "scenario B — add messages.sentiment (NOT NULL, backfilled, indexed), one transaction"
+file: services/conversations/migrations/tenant/0011_messages_sentiment.sql
+table: messages
+# runs INSIDE the guest (over ssh): the tenant database the probes read
+db_exec: docker exec -i specimen-conversations-db-1 psql -U specimen -d conv_acme -X
+smoke: api
+# The conversations service holds 4 connections per tenant and its list queries take 1-3.5 s at this
+# scale (parallel seq scans; see the plans table), behind a gateway that gives an upstream 10 s. At
+# 10 rps the pool is saturated before any migration and every probe is a 502 (run 20260923T144327Z,
+# superseded). 1 rps is what this app sustains with these probes.
+rps: 1
+# the test IdP issues 300 s tokens (infra/idp/config.json tokenExpiry); re-mint every 200 s
+auth_ttl: 200
+drain_probe: conversation_get
+naive:
+  transaction: true          # their goose file runs as one transaction; that is the whole finding
+  statements:
+    - sql: ALTER TABLE messages ADD COLUMN sentiment text NOT NULL DEFAULT 'neutral'
+    - sql: |
+        UPDATE messages SET sentiment = CASE
+            WHEN body ILIKE '%thank%' OR body ILIKE '%resolved%' OR body ILIKE '%great%' THEN 'positive'
+            WHEN body ILIKE '%not work%' OR body ILIKE '%still%' OR body ILIKE '%duplicate%' THEN 'negative'
+            ELSE 'neutral' END
+    - sql: CREATE INDEX messages_sentiment_idx ON messages (sentiment)
+# after the hand-run migration, tell the app's own migrator (goose) that 0011 is applied, so the NEW
+# image does not try to run it again on a schema that already has the column
+post_naive:
+  - INSERT INTO goose_db_version (version_id, is_applied) VALUES (11, true) ON CONFLICT DO NOTHING
+safe:
+  description: "column with a DEFAULT (metadata-only since PG11; new rows get it), backfill by ctid page range (4096 pages ~ 170k rows per batch, committed per batch; ids are uuids so there is no integer key to walk), CHECK NOT VALID + VALIDATE, SET NOT NULL, CREATE INDEX CONCURRENTLY"
+  transaction: false
+  statements:
+    - sql: ALTER TABLE messages ADD COLUMN sentiment text DEFAULT 'neutral'
+    - sql: |
+        DO $$ DECLARE lo bigint := 0; npages bigint; step bigint := 4096; BEGIN
+          SELECT pg_relation_size('messages') / current_setting('block_size')::bigint INTO npages;
+          WHILE lo <= npages LOOP
+            UPDATE messages SET sentiment = CASE
+                WHEN body ILIKE '%thank%' OR body ILIKE '%resolved%' OR body ILIKE '%great%' THEN 'positive'
+                WHEN body ILIKE '%not work%' OR body ILIKE '%still%' OR body ILIKE '%duplicate%' THEN 'negative'
+                ELSE 'neutral' END
+              WHERE ctid >= format('(%s,0)', lo)::tid AND ctid < format('(%s,0)', lo + step)::tid;
+            lo := lo + step; COMMIT;
+          END LOOP; END $$
+    - sql: ALTER TABLE messages ADD CONSTRAINT messages_sentiment_not_null CHECK (sentiment IS NOT NULL) NOT VALID
+    - sql: ALTER TABLE messages VALIDATE CONSTRAINT messages_sentiment_not_null
+    - sql: ALTER TABLE messages ALTER COLUMN sentiment SET NOT NULL
+    - sql: ALTER TABLE messages DROP CONSTRAINT messages_sentiment_not_null
+    - sql: CREATE INDEX CONCURRENTLY messages_sentiment_idx ON messages (sentiment)
+estimated_rewrite:
+  rewrites_every_row: true
+  per_row_overhead: 24
+  basis: "every message row gets a new tuple version (UPDATE of a NOT NULL DEFAULT column added in the same transaction), plus one index entry each"
+explain:
+  - name: messages_by_conversation
+    sql: SELECT id, conversation_id, author_type, author_id, body, created_at FROM messages WHERE conversation_id = (SELECT id FROM conversations WHERE status = 'open' ORDER BY id LIMIT 1) ORDER BY created_at
+  - name: latest_message
+    sql: SELECT id, body, created_at FROM messages WHERE conversation_id = (SELECT id FROM conversations WHERE status = 'open' ORDER BY id LIMIT 1) ORDER BY created_at DESC LIMIT 1
+  - name: list_open_page1
+    sql: SELECT c.id, c.status, c.created_at FROM conversations c WHERE c.status = 'open' ORDER BY c.created_at DESC LIMIT 50
+# host side, with CI_* exported: prints KEY=VALUE lines. Tokens come from the fork's OWN IdP, inside
+# its namespace, the way the CI suite gets them.
+auth: |
+  cd "$SPECIMEN_DIR" && TOK=$(ip netns exec "$CI_NS" env IDP=http://localhost:9090 ./data/baseline/mint.sh tenant-agent 2>/dev/null | tail -1)
+  CID=$(curl -s -m 30 -H "Authorization: Bearer $TOK" "http://127.0.0.1:$CI_PORT_HTTP/v1/conversations?filter=status:open&page_size=1" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['items'][0]['id'])")
+  echo "TOKEN=$TOK"; echo "PID=$CID"
+probes:
+  - name: list_open
+    url: http://127.0.0.1:${PORT}/v1/conversations?filter=status:open&page_size=50
+    headers: {Authorization: "Bearer ${TOKEN}"}
+  - name: list_tag_vip
+    url: http://127.0.0.1:${PORT}/v1/conversations?filter=tag:vip&page_size=50
+    headers: {Authorization: "Bearer ${TOKEN}"}
+  - name: conversation_get
+    url: http://127.0.0.1:${PORT}/v1/conversations/${PID}
+    headers: {Authorization: "Bearer ${TOKEN}"}
+  - name: post_message
+    method: POST
+    url: http://127.0.0.1:${PORT}/v1/conversations/${PID}/messages
+    headers: {Authorization: "Bearer ${TOKEN}", Content-Type: application/json}
+    body: '{"body":"migration check probe"}'
+# the NEW app: the conversations image built from scenario B, shipped into the fork and recreated.
+# Prints the image name it swapped in.
+new_image: |
+  IMG=sideworld-mc/specimen/conversations:scenario-b
+  docker save "$IMG" | ssh -p "$CI_PORT_SSH" $CI_SSHO root@127.0.0.1 'cat > /tmp/mc.tar'
+  ssh -p "$CI_PORT_SSH" $CI_SSHO root@127.0.0.1 "docker load -q -i /tmp/mc.tar >/dev/null && docker tag $IMG specimen/conversations:local && rm -f /tmp/mc.tar && cd $CI_GUEST_APP_DIR && docker compose $CI_GUEST_COMPOSE up -d --no-deps --force-recreate conversations" >/dev/null 2>&1
+  sleep 10
+  # what the new image's migrator did on start (lands in <run>/new-image.err; the report's note is checked against it)
+  ssh -p "$CI_PORT_SSH" $CI_SSHO root@127.0.0.1 "docker logs --since 2m specimen-conversations-1 2>&1 | grep -aiE 'goose|migrat' | tail -5 | cut -c1-200" >&2 || true
+  echo "$IMG"
+new_image_note: "the new image's own migrator (goose) found 0011 recorded as applied for acme and started without re-running it there (its start-up log is kept in the run directory as new-image.err)"
+notes:
+  - "Workload: 4 probes round-robin through the gateway as tenant-agent on tenant acme; one of them writes a message into the conversation the migration is rewriting. 1 rps, because the conversations service holds 4 connections per tenant and its list queries take 1-3.5 s at 10M conversations: at 10 rps the pool is full before any migration."
+  - "Run 20260923T144327Z (superseded): 10 rps, one 300 s token. Every read probe was a gateway 502 (upstream 10 s timeout) from the warm-up on, the token expired 276 s in and the rest was 401; the smoke after the migration failed 17 of 33 on the same 502s, i.e. on the backlog, not the schema. Its safe pattern also failed at once: min(uuid) does not exist, the batched backfill had assumed an integer key. Measured all the same: the naive migration took 597.6 s (UPDATE 578.5 s, CREATE INDEX 18.7 s) and messages_by_conversation went from 3.6 s to 14.4 s afterwards."
+  - "Run 20260923T150714Z (superseded, same numbers: naive 604.8 s, safe 4455.8 s): the readiness check before the new-image smoke was made with an expired token, so that smoke began while the recreated service was still coming up and three tests failed on 'fetch failed' rather than on anything the migration did."
+  - "The smoke's failures are all gateway 502s on writes (POST /v1/conversations: expected 201, got 502): the upstream took longer than the gateway's 10 s. The CI baseline records 20 of these 33 tests failing on an unmodified fork at this scale, and the plans table shows why the migration makes it worse: the two queries on messages read twice the pages afterwards (the rewrite left 19.9M dead tuples) and went from 1.8 s and 0.6 s to 4.5 s and 4.8 s. The schema itself is compatible with both images."
+  - "The new image's own migrator (goose) found 0011 recorded as applied for tenant acme (applied=0) and applied it to the other tenant, globex (applied=1): that is what shipping the file does to every tenant the hand-run migration did not touch."
+  - "Unresolved: on the new image, TestSuperadminCreatesTenant fails with 'upstream conversations:8081 unreachable (fetch failed)' for its whole minute, in every pass, while the same test passes on the old image on the same schema. A connect failure, not a timeout, so the recreated service was not listening for that minute; whether the scenario-B image crashes on tenant creation or the gateway keeps a stale connection was not established, because the fork is torn down before the report exists. It is reported as the one new failure it is."
+  - "The safe pattern under the same 1 rps: 74 minutes against 10, and nothing failed. Its backfill batches wait on disk (DataFileRead) behind the probes' own full scans of messages, which the naive form had simply blocked; and it leaves the same 19.9M dead tuples for vacuum, because every row still gets a new version."

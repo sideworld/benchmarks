@@ -1,0 +1,72 @@
+# Migration Check adapter -- Mastodon v4.7.2 at 107,947,907 statuses: the two migrations
+# strong_migrations would refuse, replayed against a fork of the CI baseline under load.
+label: "statuses: CREATE INDEX (language, id DESC) without CONCURRENTLY, then ALTER COLUMN language SET NOT NULL"
+file: "(not in their history: the two shapes strong_migrations refuses, from benchmarks/mastodon/migration.sh)"
+table: statuses
+db_exec: docker exec -i app-db-1 psql -U postgres -d mastodon_production -X
+smoke: smoke
+naive:
+  transaction: false         # each statement in its own transaction, as a migration file would run them
+  statements:
+    - sql: CREATE INDEX index_statuses_on_language_and_id ON statuses (language, id DESC)
+    - sql: ALTER TABLE statuses ALTER COLUMN language SET NOT NULL
+safe:
+  description: "CREATE INDEX CONCURRENTLY; then CHECK (language IS NOT NULL) NOT VALID, VALIDATE (ShareUpdateExclusive, reads and writes continue), SET NOT NULL (Postgres uses the validated CHECK and skips the scan), drop the helper"
+  transaction: false
+  statements:
+    - sql: CREATE INDEX CONCURRENTLY index_statuses_on_language_and_id ON statuses (language, id DESC)
+    - sql: ALTER TABLE statuses ADD CONSTRAINT statuses_language_not_null CHECK (language IS NOT NULL) NOT VALID
+    - sql: ALTER TABLE statuses VALIDATE CONSTRAINT statuses_language_not_null
+    - sql: ALTER TABLE statuses ALTER COLUMN language SET NOT NULL
+    - sql: ALTER TABLE statuses DROP CONSTRAINT statuses_language_not_null
+estimated_rewrite:
+  rewrites_every_row: false
+  bytes: 0
+  basis: "neither statement rewrites tuples: the index build writes a new index (statuses has 107.9M rows; the (language, id) index is ~2.3 GB measured), SET NOT NULL scans the heap once and writes nothing"
+explain:
+  - name: public_timeline
+    sql: SELECT id FROM statuses WHERE visibility = 0 AND local = true AND deleted_at IS NULL ORDER BY id DESC LIMIT 20
+  - name: account_statuses
+    sql: SELECT id FROM statuses WHERE account_id = (SELECT account_id FROM account_stats ORDER BY followers_count DESC LIMIT 1) AND deleted_at IS NULL ORDER BY id DESC LIMIT 20
+  - name: statuses_by_language
+    sql: SELECT id FROM statuses WHERE language = 'en' ORDER BY id DESC LIMIT 20
+# Tokens are minted INSIDE the guest with Mastodon's own rails runner, the way make-token.sh does
+# natively. Twelve of them: Mastodon throttles 300 requests / 5 min PER TOKEN (throttle_per_token_api)
+# and 300 / 5 min per IP for unauthenticated calls, so at 10 rps every probe rotates three tokens
+# (<= 0.84 rps each) and the public timeline is fetched authenticated, leaving the IP quota to the
+# smoke's own followers probe. The first run of this check (20260923T140318Z) did neither and a third
+# of the authenticated requests were 429 before the migration began.
+auth: |
+  S="ssh -p $CI_PORT_SSH $CI_SSHO root@127.0.0.1"
+  HID=$($S "docker exec app-db-1 psql -U postgres -d mastodon_production -Atc \"select a.id from account_stats s join accounts a on a.id=s.account_id where a.domain is null order by s.followers_count desc limit 1\"" | tail -1)
+  OTHERS=$($S "docker exec app-db-1 psql -U postgres -d mastodon_production -Atc \"select string_agg(username, ' ') from (select a.username from accounts a join users u on u.account_id=a.id where a.domain is null and a.username <> 'heavyfollower' order by a.id limit 8) x\"" | tail -1)
+  $S "docker exec app-web-1 bin/rails runner \"app = Doorkeeper::Application.find_or_create_by!(name: 'benchmark-probe') { |a| a.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'; a.scopes = 'read write follow push' }; %w(heavyfollower $OTHERS).each_with_index { |n, i| user = User.find_by!(account: Account.find_local!(n)); 3.times { |k| tok = Doorkeeper::AccessToken.create!(application: app, resource_owner_id: user.id, scopes: 'read write follow push'); puts 'TOKEN_' + i.to_s + '_' + k.to_s + '=' + tok.token } }\" 2>/dev/null" | grep '^TOKEN_'
+  echo "PID=$HID"
+# user 0 = heavyfollower (the heavy home timeline); users 1-8 = the eight lowest-id local accounts.
+# post_status rotates six ACCOUNTS (3-8), not just tokens: Mastodon's RateLimiter allows 300 new
+# statuses per account per 3 hours, and the posts queued behind a lock are all counted when the
+# lock releases (run 20260923T142311Z: 139 of 151 post_status requests after the migration were 429).
+probes:
+  - name: public_timeline
+    url: http://127.0.0.1:${PORT}/api/v1/timelines/public?limit=20&local=true
+    headers: {X-Forwarded-Proto: https, Host: mastodon.test, Authorization: "Bearer ${TOKEN_1_0}"}
+    alt_headers: [{Authorization: "Bearer ${TOKEN_1_1}"}, {Authorization: "Bearer ${TOKEN_1_2}"}]
+  - name: account_statuses
+    url: http://127.0.0.1:${PORT}/api/v1/accounts/${PID}/statuses?limit=20
+    headers: {X-Forwarded-Proto: https, Host: mastodon.test, Authorization: "Bearer ${TOKEN_2_0}"}
+    alt_headers: [{Authorization: "Bearer ${TOKEN_2_1}"}, {Authorization: "Bearer ${TOKEN_2_2}"}]
+  - name: home_timeline
+    url: http://127.0.0.1:${PORT}/api/v1/timelines/home?limit=20
+    headers: {X-Forwarded-Proto: https, Host: mastodon.test, Authorization: "Bearer ${TOKEN_0_0}"}
+    alt_headers: [{Authorization: "Bearer ${TOKEN_0_1}"}, {Authorization: "Bearer ${TOKEN_0_2}"}]
+  - name: post_status
+    method: POST
+    url: http://127.0.0.1:${PORT}/api/v1/statuses
+    headers: {X-Forwarded-Proto: https, Host: mastodon.test, Authorization: "Bearer ${TOKEN_3_0}", Content-Type: application/json}
+    alt_headers: [{Authorization: "Bearer ${TOKEN_4_0}"}, {Authorization: "Bearer ${TOKEN_5_0}"}, {Authorization: "Bearer ${TOKEN_6_0}"}, {Authorization: "Bearer ${TOKEN_7_0}"}, {Authorization: "Bearer ${TOKEN_8_0}"}]
+    body: '{"status":"migration check probe","visibility":"unlisted"}'
+new_image_note: "these statements are not from Mastodon's history and ship with no code change; the same v4.7.2 image is recreated for the second smoke"
+notes:
+  - "Workload: 4 probes round-robin, the home timeline as heavyfollower (5,000 followed), the reads as ordinary local users with three tokens per probe (Mastodon allows 300 requests / 5 min per token), the status post spread over six accounts (300 new statuses per account per 3 hours); one probe writes a status, i.e. an INSERT into the table being altered."
+  - "Run 20260923T142311Z (superseded): three tokens per probe but one posting account; the migration itself measured the same (CREATE INDEX 192.3 s, SET NOT NULL 137.5 s of which 97.8 s queued for the AccessExclusiveLock and 39.7 s holding it; every probe timed out at 30 s throughout), and 139 of the 151 post_status requests in the after window were 429 from the per-account status limit, which the queued posts had exhausted the moment the lock released."
+  - "Run 20260923T140318Z (superseded): one token, unauthenticated public timeline; 429s on a third of the authenticated probes before the migration and on the smoke's followers page after it. The lock and duration numbers of that run were consistent with this one (CREATE INDEX 132.9 s, SET NOT NULL 150.3 s, AccessExclusiveLock 38.3 s)."
