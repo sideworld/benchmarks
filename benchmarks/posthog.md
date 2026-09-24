@@ -792,7 +792,7 @@ minute. A world whose web process took ten seconds to start would get its verdic
 | 6. PR swap | 314.7 s | build 7.8 s warm / 30 s cold; 252 s of it Django restarting |
 | 7. alternative row | led with (§10) | 234 s to working, 84/52 ms trends, 18.2 GiB, no ceiling |
 | 8. CI | baseline 8/8 stable in 335 s; green **421.1 s**; red **447.4 s naming `persons_list`** | runner-sim only; three generic CI fixes on the way |
-| 9. write-up | this file, `OUTREACH.md`, BENCHMARK column, BUILDLOG ×2 | |
+| 9. write-up | this file, a five-number summary (not in this repo), BENCHMARK column, BUILDLOG ×2 | |
 
 Start 2026-09-23 06:03 UTC. Natively ready 06:46. Two forks 09:04. CI verdicts ~12:40.
 **About 6 h 40 min of wall clock, of which ~1 h 50 min was a background chain killed and

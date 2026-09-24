@@ -140,5 +140,4 @@ index entries to return 60, a plain `CREATE INDEX` from their own migration hist
 `ShareLock` on Posts for 6.6 s, and a `VACUUM` that dies on Docker's 64 MB `/dev/shm`. Five
 generic fixes came out of it, including a `vacuumdb` that re-prompted for a password **76,606
 times** while the runbook displayed "VACUUM ANALYZE (all databases)". Full ledger:
-[`benchmarks/mattermost.md`](benchmarks/mattermost.md), and the five numbers for an
-infrastructure lead: [`benchmarks/mattermost/OUTREACH.md`](benchmarks/mattermost/OUTREACH.md).
+[`benchmarks/mattermost.md`](benchmarks/mattermost.md).
