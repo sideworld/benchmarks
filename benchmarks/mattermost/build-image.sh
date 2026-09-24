@@ -4,7 +4,7 @@
 set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC=${MM_SRC:-/tank/work/mattermost}/server
-IMG=${MM_SERVER_IMAGE:-paraglobe/mattermost-server:v11.11.0}
+IMG=${MM_SERVER_IMAGE:-sideworld/mattermost-server:v11.11.0}
 t0=$(date +%s.%N)
 echo "==> make build-cmd-linux (their recipe)"
 # `make -C` is wrong here: their Makefile builds GOBIN from $(PWD), which make takes from the

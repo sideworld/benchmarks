@@ -11,7 +11,7 @@
 set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BASE=${1:-${PH_BASE:-http://127.0.0.1:8100}}
-EMAIL=${PH_ADMIN_EMAIL:-paraglobe@example.test}; PASS=${PH_ADMIN_PASS:-Paraglobe-12345678}
+EMAIL=${PH_ADMIN_EMAIL:-sideworld@example.test}; PASS=${PH_ADMIN_PASS:-Sideworld-12345678}
 CJ=$(mktemp); trap 'rm -f "$CJ"' EXIT
 S=$(date +%s); t0=$(date +%s.%N); el() { echo "$1 $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}'; }
 j() { python3 -c "import json,sys

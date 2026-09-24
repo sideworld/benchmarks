@@ -121,7 +121,7 @@ services:
 
   mattermost:
     container_name: mm-server
-    image: "${MM_SERVER_IMAGE:-paraglobe/mattermost-server:v11.11.0}"
+    image: "${MM_SERVER_IMAGE:-sideworld/mattermost-server:v11.11.0}"
     networks: [mm-test]
     restart: always
     depends_on:

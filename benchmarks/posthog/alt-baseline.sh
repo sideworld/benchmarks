@@ -10,7 +10,7 @@ set -euo pipefail
 ACT=${1:?up|down|isolation}; K=${2:-1}
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); P=${PH_SRC:-/tank/work/posthog}
 PROJ=ph-alt$K; PORT=$((8110 + K)); SNAP=${PH_SNAP:-ph-base}; OVR=$SPEC_DIR/compose/docker-compose.alt$K.yml
-EMAIL=${PH_ADMIN_EMAIL:-paraglobe@example.test}; PASS=${PH_ADMIN_PASS:-Paraglobe-12345678}
+EMAIL=${PH_ADMIN_EMAIL:-sideworld@example.test}; PASS=${PH_ADMIN_PASS:-Sideworld-12345678}
 SETS="pg:/var/lib/postgresql/data:db ch:/var/lib/clickhouse:clickhouse zk:/data:zookeeper zklog:/datalog:zookeeper kafka:/var/lib/redpanda/data:kafka redis:/data:redis7 minio:/data:objectstorage seaweedfs:/data:seaweedfs"
 el() { echo "$1 $(date +%s.%N)" | awk '{printf "%.1f", $2-$1}'; }
 dc() { docker compose -p "$PROJ" --project-directory "$P" --env-file "$SPEC_DIR/compose/hobby.env" -f "$SPEC_DIR/compose/docker-compose.hobby.paraglobe.yml" -f "$SPEC_DIR/compose/docker-compose.ph.yml" -f "$OVR" "$@"; }

@@ -50,7 +50,7 @@ else
   why=$(printf '%s' "$RESP" | python3 -c "import json,sys
 try: print(json.load(sys.stdin).get('id',''))
 except Exception: print('')")
-  LOGIN=${MM_PROBE_USER:-core1}; PW=${MM_PROBE_PW_EXISTING:-Paraglobe-1234}
+  LOGIN=${MM_PROBE_USER:-core1}; PW=${MM_PROBE_PW_EXISTING:-Sideworld-1234}
   USER=$(api "$BASE/api/v4/users/username/$LOGIN" | jq_ "['id']")
   [ -n "$USER" ] || { echo "cannot create a user ($why) and $LOGIN does not exist either" >&2; exit 1; }
   api -X POST "$BASE/api/v4/teams/$TEAM/members" -d "{\"team_id\":\"$TEAM\",\"user_id\":\"$USER\"}" >/dev/null

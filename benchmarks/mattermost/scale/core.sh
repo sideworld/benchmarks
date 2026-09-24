@@ -27,9 +27,9 @@ print(i if re.fullmatch(r'[a-z0-9]{26}', i or '') else '')"; }
 need() { [ -n "$1" ] || { echo "FAILED: $2" >&2; exit 1; }; }
 
 echo "==> team"
-TEAM=$(api "$BASE/api/v4/teams/name/paraglobe" | id_)
+TEAM=$(api "$BASE/api/v4/teams/name/sideworld" | id_)
 if [ -z "$TEAM" ]; then
-  TEAM=$(api -X POST "$BASE/api/v4/teams" -d '{"name":"paraglobe","display_name":"Paraglobe","type":"O"}' | id_)
+  TEAM=$(api -X POST "$BASE/api/v4/teams" -d '{"name":"sideworld","display_name":"Sideworld","type":"O"}' | id_)
 fi
 need "$TEAM" "could not create or find the team"
 echo "    $TEAM"
@@ -40,7 +40,7 @@ for i in $(seq 1 "$NU"); do
   u=core$i
   uid=$(api "$BASE/api/v4/users/username/$u" | id_)
   [ -n "$uid" ] || uid=$(api -X POST "$BASE/api/v4/users" \
-      -d "{\"email\":\"$u@example.test\",\"username\":\"$u\",\"password\":\"Paraglobe-1234\"}" | id_)
+      -d "{\"email\":\"$u@example.test\",\"username\":\"$u\",\"password\":\"Sideworld-1234\"}" | id_)
   need "$uid" "could not create user $u"
   api -X POST "$BASE/api/v4/teams/$TEAM/members" -d "{\"team_id\":\"$TEAM\",\"user_id\":\"$uid\"}" >/dev/null
   echo "$uid" >> "$SPEC_DIR/.core-users"

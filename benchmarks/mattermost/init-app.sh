@@ -7,9 +7,9 @@
 # a month: the token minted at the end is a personal access token, which does not expire.
 set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-ADMIN_USER=${MM_ADMIN_USER:-paraglobe}
-ADMIN_EMAIL=${MM_ADMIN_EMAIL:-paraglobe@example.test}
-ADMIN_PASS=${MM_ADMIN_PASS:-Paraglobe-1234}
+ADMIN_USER=${MM_ADMIN_USER:-sideworld}
+ADMIN_EMAIL=${MM_ADMIN_EMAIL:-sideworld@example.test}
+ADMIN_PASS=${MM_ADMIN_PASS:-Sideworld-1234}
 BUCKET=${MM_BUCKET:-mattermost-files}
 mmctl() { docker exec mm-server /mattermost/bin/mmctl --local "$@"; }
 
@@ -43,8 +43,8 @@ tok_ok() {
 if ! tok_ok; then
   rm -f "$SPEC_DIR/.token"
   mmctl user activate "$ADMIN_USER" >/dev/null 2>&1 || true
-  tok=$(mmctl token generate "$ADMIN_USER" paraglobe 2>&1 | grep -oE '[a-z0-9]{26}' | tail -1)
-  [ -n "$tok" ] || { echo "could not mint a token" >&2; mmctl token generate "$ADMIN_USER" paraglobe; exit 1; }
+  tok=$(mmctl token generate "$ADMIN_USER" sideworld 2>&1 | grep -oE '[a-z0-9]{26}' | tail -1)
+  [ -n "$tok" ] || { echo "could not mint a token" >&2; mmctl token generate "$ADMIN_USER" sideworld; exit 1; }
   umask 077; printf '%s\n' "$tok" > "$SPEC_DIR/.token"
 fi
 tok_ok || { echo "the token still does not authenticate" >&2; exit 1; }

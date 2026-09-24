@@ -23,8 +23,8 @@ BASE_IMG=sideworld/mattermost-server:v11.11.0
 
 # the one line
 F=$WT/server/channels/api4/system.go
-grep -q 'ParaglobePR' "$F" || sed -i 's|^\ts\[model.STATUS\] = model.StatusOk$|\ts[model.STATUS] = model.StatusOk\n\ts["ParaglobePR"] = "pr1"|' "$F"
-grep -n 'ParaglobePR' "$F" | sed 's/^/   /'
+grep -q 'SideworldPR' "$F" || sed -i 's|^\ts\[model.STATUS\] = model.StatusOk$|\ts[model.STATUS] = model.StatusOk\n\ts["SideworldPR"] = "pr1"|' "$F"
+grep -n 'SideworldPR' "$F" | sed 's/^/   /'
 
 t0=$(date +%s.%N)
 ( cd "$WT/server" && make build-cmd-linux BUILD_NUMBER=pr1 SKIP_SETUP_GO_WORK=false >/dev/null )
@@ -45,7 +45,7 @@ t4=$(date +%s.%N)
 # curl exits 7 while the container is being recreated; `|| true` keeps set -e out of it
 for _ in $(seq 1 1200); do
   v=$( { curl -s -m 5 "http://127.0.0.1:3${KK}80/api/v4/system/ping" || true; } | python3 -c 'import sys,json
-try: print(json.load(sys.stdin).get("ParaglobePR",""))
+try: print(json.load(sys.stdin).get("SideworldPR",""))
 except Exception: print("")')
   [ "$v" = pr1 ] && break
   sleep 0.25
