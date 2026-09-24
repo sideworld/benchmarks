@@ -7,8 +7,8 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TT=${TT_DIR:-/tank/work/trainticket}; TAG=${TT_TAG:-v0.2.0}
-SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
-LOG=${LOG:-$SIDEWORLD_DIR/vm/out/tt-onboard.log}; mkdir -p "$(dirname "$LOG")"
+PARAGLOBE_DIR=${PARAGLOBE_DIR:-$(cd "$HERE/../../../paraglobe" 2>/dev/null && pwd || echo "$HERE/../../../paraglobe")}  # sibling checkout of the fork runtime
+LOG=${LOG:-$PARAGLOBE_DIR/vm/out/tt-onboard.log}; mkdir -p "$(dirname "$LOG")"
 exec > >(tee -a "$LOG") 2>&1
 CUR=start
 step() { CUR=$*; printf '\n\033[1;37m[%s] %s\033[0m\n' "$(date -u +%T)" "$*"; }

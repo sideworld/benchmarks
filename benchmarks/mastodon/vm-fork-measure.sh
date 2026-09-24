@@ -6,8 +6,8 @@
 # fan-out, storage delta on the zvol clone, host headroom. Appends to vm/out/md-forks.csv.
 #   benchmarks/mastodon/vm-fork-measure.sh <name> <k> [--probe]   (--probe: heavy home timeline too)
 set -euo pipefail
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); OUT=$SIDEWORLD_DIR/vm/out
-SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); OUT=$PARAGLOBE_DIR/vm/out
+PARAGLOBE_DIR=${PARAGLOBE_DIR:-$(cd "$HERE/../../../paraglobe" 2>/dev/null && pwd || echo "$HERE/../../../paraglobe")}  # sibling checkout of the fork runtime
 NAME=${1:?name}; K=${2:?k}; PROBE=${3:-}
 KK=$(printf '%02d' "$K"); P_WEB=3${KK}80; P_STREAM=3${KK}90; P_SSH=3${KK}22
 H=(-H "X-Forwarded-Proto: https" -H "Host: mastodon.test")
@@ -17,7 +17,7 @@ CSV=$OUT/md-forks.csv
 [ -f "$CSV" ] || echo "fork,t_load_s,t_restore_to_api_response_s,pss_mb_10,rss_mb_10,pss_mb_60,rss_mb_60,pss_mb_120,rss_mb_120,pss_anon_120,pss_file_120,storage_delta_mib,isolation_http,streaming,sidekiq,home_s,host_avail_gib_after" > "$CSV"
 
 log "fork $K of $NAME"
-"$SIDEWORLD_DIR/vm/app.sh" "$HERE/app.spec" fork "$NAME" "$K" > "$OUT/md-fork-$K.log" 2>&1 || { tail -20 "$OUT/md-fork-$K.log"; exit 1; }
+"$PARAGLOBE_DIR/vm/app.sh" "$HERE/app.spec" fork "$NAME" "$K" > "$OUT/md-fork-$K.log" 2>&1 || { tail -20 "$OUT/md-fork-$K.log"; exit 1; }
 T0=$(date +%s)
 val() { sed -n "s/^$1=//p" "$OUT/md-fork-$K.log" | tail -1; }
 T_LOAD=$(val t_load); T_READY=$(val t_restore_to_api_response)

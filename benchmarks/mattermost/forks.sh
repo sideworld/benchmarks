@@ -8,7 +8,7 @@
 # Fork k answers on 127.0.0.1:3<kk>80. Owns tank/mm-vmfork<k>, tank/rootfs-mm-src<k>, fc-mm<k>.
 set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SW=${SIDEWORLD_DIR:-/tank/work/sideworld}
+SW=${PARAGLOBE_DIR:-/tank/work/paraglobe}
 SPEC=$SPEC_DIR/app.spec
 ACT=${1:?up|down|isolation}; N=${2:-5}
 TOK=$(cat "$SPEC_DIR/.token"); TEAM=$(cat "$SPEC_DIR/.core-team")

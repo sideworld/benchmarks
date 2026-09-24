@@ -154,7 +154,7 @@ Is `PROJECT_DIR` (added for Mattermost) the fix? No — it would make the hobby 
 but then the *base* file's `./docker/…` paths (which the hobby file `extends`) would not: the two
 files disagree about where the project directory is, and only the installer's copy-and-symlink
 dance reconciles them. **Not a generic gap.** The world-specific answer is
-`compose/docker-compose.hobby.sideworld.yml` — their file with `./posthog/` folded to `./`,
+`compose/docker-compose.hobby.paraglobe.yml` — their file with `./posthog/` folded to `./`,
 regenerable with one `sed`, and `check-upstream.sh` proves it equals that `sed` of the pinned
 original — plus `compose/`, `share/` and `.env.services` in the checkout (git-excluded locally,
 exactly the artefacts the installer would have produced).
@@ -592,7 +592,7 @@ check that a fork now keeps `capture` up 75 s after restore is in the next subse
 
 ### PR → changed system serving, in fork 1
 
-One line in `posthog/views.py` (`/_health` answers `ok sideworld-pr1`), layered onto the pinned
+One line in `posthog/views.py` (`/_health` answers `ok paraglobe-pr1`), layered onto the pinned
 2.7 GB image with a two-line Dockerfile (a Python change does not need PostHog's multi-GB build;
 the same trick as Mastodon's).
 
@@ -604,7 +604,7 @@ the same trick as Mastodon's).
 | until `/_health` carries the marker — Django restarting: `migrate-check` and NGINX Unit | **251.8 s** |
 | **total** | **314.7 s** |
 
-Afterwards fork 1 answers `ok sideworld-pr1` and fork 2 answers `ok`. The 252 s is PostHog's own
+Afterwards fork 1 answers `ok paraglobe-pr1` and fork 2 answers `ok`. The 252 s is PostHog's own
 restart cost (the same four minutes the guest's cold boot pays after its containers are up), not
 the swap's: ship and load together are under a minute. The image-transfer number is also honest
 about the layering trick's limit — a 2.7 GB image ships for a one-line change; the CI path (§9)
@@ -612,7 +612,7 @@ retags rather than ships, and pays only the recreate.
 
 ## 11. Tooling absorbed by the runtime vs PostHog-specific adapter
 
-**Generic (in `../sideworld`, none of it PostHog-specific), from `git diff --stat`:**
+**Generic (in `../paraglobe`, none of it PostHog-specific), from `git diff --stat`:**
 
 | file | change |
 |---|---|
@@ -630,7 +630,7 @@ fact ("one service, two datasets") in three files.
 | file | lines | what |
 |---|--:|---|
 | `app.spec` | 30 | the spec |
-| `compose/docker-compose.hobby.sideworld.yml` | 746 | **their** hobby file with `./posthog/` → `./` (`check-upstream.sh` proves it) |
+| `compose/docker-compose.hobby.paraglobe.yml` | 746 | **their** hobby file with `./posthog/` → `./` (`check-upstream.sh` proves it) |
 | `compose/docker-compose.ph.yml` | 63 | datasets, ports, sinks, the quay redirect, `shm_size` |
 | `compose/hobby.env`, `compose/vm.env` | 9 + 14 | what `bin/deploy-hobby` writes; the guest's front-door binding |
 | `probe.sh` | 79 | the round trip, incl. the email-verification code from the sink |
@@ -749,7 +749,7 @@ all of the same shape as the runtime ones — an assumption three worlds never c
 
 | | PR #1 `ci/pr-1-health-marker` | PR #2 `ci/pr-2-persons-page` |
 |---|---|---|
-| the change | one line: `/_health` answers `ok sideworld-pr1` | `DEFAULT_PAGE_LIMIT = 1`, then (second commit) the server-side page size applied for every caller |
+| the change | one line: `/_health` answers `ok paraglobe-pr1` | `DEFAULT_PAGE_LIMIT = 1`, then (second commit) the server-side page size applied for every caller |
 | expected | green | red, naming `persons_list` |
 | **got, first commit** | **green — 8/8, 0 new, 421.1 s** | **green — 8/8**, correctly: see below |
 | got, second commit | — | **RED — 1 new: `persons_list` (1 person returned), 7 of 8 still green incl. the round trip; 447.4 s** |

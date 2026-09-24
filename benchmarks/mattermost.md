@@ -351,7 +351,7 @@ expect, never test for non-empty.
 ### PR → changed system serving
 
 One line in `server/channels/api4/system.go` so `/api/v4/system/ping` returns
-`"SideworldPR": "pr1"` — unauthenticated, so "is this fork running the pull request's code?" has
+`"ParaglobePR": "pr1"` — unauthenticated, so "is this fork running the pull request's code?" has
 a yes/no answer rather than an inference.
 
 | | |
@@ -363,7 +363,7 @@ a yes/no answer rather than an inference.
 | until `/api/v4/system/ping` reports the marker | 0.5 s |
 | **total, source edit → fork serving the change** | **20.3 s** |
 
-Afterwards fork 1 reports `SideworldPR=pr1`; forks 2 and 3 report it absent, and fork 1 still
+Afterwards fork 1 reports `ParaglobePR=pr1`; forks 2 and 3 report it absent, and fork 1 still
 serves `gen-1` with 2.3 M posts. Go is the reason this is 20 s and Mastodon's equivalent is 67 s:
 there is no trick here, the server really is recompiled from source.
 
@@ -380,7 +380,7 @@ A ZFS clone of the database as a "database branch", plus a conventional cold
 | channel history, warm | **17 ms** | 29 ms |
 | memory | **400 MiB** (4 containers) | 589 MiB (one process, fixed 4 GiB / 4 vCPU envelope) |
 | disk for the branch | 868 K | 1.3 MB |
-| carries the changed server | yes (`SideworldPR=pr1`) | yes |
+| carries the changed server | yes (`ParaglobePR=pr1`) | yes |
 
 **This is the world where the alternative is most competitive, and it should be said plainly.**
 A Go server starts in seconds, so a conventional cold deploy against a cloned database reaches a
@@ -432,7 +432,7 @@ from a per-pull-request verdict. Named, not dropped.
 
 | | PR #1 `ci/pr-1-ping-marker` | PR #2 `ci/pr-2-break-search` |
 |---|---|---|
-| the change | one line: `/api/v4/system/ping` returns `SideworldPR: pr1` | one line: a scoping token is appended to the search terms |
+| the change | one line: `/api/v4/system/ping` returns `ParaglobePR: pr1` | one line: a scoping token is appended to the search terms |
 | expected | green | red |
 | **got** | **green — 7/7, 0 new** | **RED — 1 new: `search`** |
 | total | **43.6 s** | 45.3 s |
@@ -465,7 +465,7 @@ starting, so the suite never ran and the comment could only say "the run did not
   deployed world lives with the world's adapter, and reading it from there has a second benefit:
   a pull request cannot edit the image mapping that is used to judge it.
 - **`${NAME:-default}` is now interpolated.** A Compose file that must run on the host, in the
-  guest and in a fork writes its image as `${MM_SERVER_IMAGE:-sideworld/mattermost-server:v11.11.0}`,
+  guest and in a fork writes its image as `${MM_SERVER_IMAGE:-paraglobe/mattermost-server:v11.11.0}`,
   and the default *is* the answer. Previously only `${NAME}` and `$NAME` were handled and the
   planner reported the whole `${…}` verbatim. Regression-tested against TrainTicket's
   `${IMG_REPO}/ts-order-service:${IMG_TAG}` and Mastodon's plain tag.

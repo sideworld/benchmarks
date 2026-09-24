@@ -22,8 +22,8 @@ n_teams_have=$(echo "$TEAM_IDS" | tr ',' '\n' | wc -l)
 [ "$n_teams_have" -ge "$N_TEAMS" ] || { echo "  only $n_teams_have teams exist; scale/core.sh must create $N_TEAMS projects first" >&2; exit 1; }
 
 # ---------------------------------------------------------------- persons, Postgres
-if [ "$(q "select count(*) from information_schema.tables where table_name='sideworld_gen_persons'")" = 1 ]; then
-  say "persons: Postgres already has $(q 'select count(*) from sideworld_gen_persons') generated persons; skipping the Postgres phase"
+if [ "$(q "select count(*) from information_schema.tables where table_name='paraglobe_gen_persons'")" = 1 ]; then
+  say "persons: Postgres already has $(q 'select count(*) from paraglobe_gen_persons') generated persons; skipping the Postgres phase"
 else
 say "persons: $N_PERSONS per team x $N_TEAMS teams into Postgres (bulk-load profile)"
 t0=$(date +%s.%N)
@@ -33,14 +33,14 @@ echo "  t_persons_pg=$(el "$t0")s"
 fi
 
 # ---------------------------------------------------------------- persons, ClickHouse (copied)
-if [ "$(ch --query 'select count() from person')" -ge "$(q 'select count(*) from sideworld_gen_persons')" ]; then
+if [ "$(ch --query 'select count() from person')" -ge "$(q 'select count(*) from paraglobe_gen_persons')" ]; then
   say "persons: ClickHouse already has them; skipping the copy"
 else
 say "persons: the same rows into ClickHouse person / person_distinct_id2"
 t0=$(date +%s.%N)
-q "copy (select uuid, to_char(created_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS'), team_id, properties, is_identified, 0, 0 from sideworld_gen_persons) to stdout with (format csv)" \
+q "copy (select uuid, to_char(created_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS'), team_id, properties, is_identified, 0, 0 from paraglobe_gen_persons) to stdout with (format csv)" \
   | ch --query "INSERT INTO person (id, created_at, team_id, properties, is_identified, is_deleted, version) FORMAT CSV"
-q "copy (select team_id, distinct_id, uuid, 0, 0 from sideworld_gen_persons) to stdout with (format csv)" \
+q "copy (select team_id, distinct_id, uuid, 0, 0 from paraglobe_gen_persons) to stdout with (format csv)" \
   | ch --query "INSERT INTO person_distinct_id2 (team_id, distinct_id, person_id, is_deleted, version) FORMAT CSV"
 echo "  ch person=$(ch --query 'select count() from person')  pdi2=$(ch --query 'select count() from person_distinct_id2')  t_persons_ch=$(el "$t0")s"
 fi

@@ -1,6 +1,6 @@
 # benchmarks — how to reproduce every number
 
-The evidence for the fork runtime in `../sideworld`, measured on the system in `../specimen` and on two
+The evidence for the fork runtime in `../paraglobe`, measured on the system in `../specimen` and on two
 foreign systems (TrainTicket, Mastodon). Every figure in these documents is measured; the ledgers say
 where, when, on what hardware, and with which commands. Nothing here is a product and nothing here runs
 the forks — this repository holds the write-ups, the per-system adapters (Compose overrides, readiness
@@ -46,9 +46,14 @@ The numbers were produced on one machine: Hetzner Ryzen 7 7700, 64 GB DDR5, 2×1
 | repo | pinned at | why |
 |---|---|---|
 | `../specimen` | `498b30e` (split point, 2026-09-22) | the system L1 measures; `make scale N=10000000` produced the 10M baseline (`../specimen/data/scale/README.md`), `make probe` the numbers in `../specimen/docs/PROBE-10M.md` |
-| `../sideworld` | `2f67539` (split point, 2026-09-22) | the runtime every fork here ran on: `vm/` (Firecracker build, boot, snapshot, fork, measure), `vm/mkfork-generic.sh`, `vm/onboard-generic.sh`, `demo.sh` |
+| `../paraglobe` | `2f67539` (split point, 2026-09-22) | the runtime every fork here ran on: `vm/` (Firecracker build, boot, snapshot, fork, measure), `vm/mkfork-generic.sh`, `vm/onboard-generic.sh`, `demo.sh` |
 
-The adapters find the runtime through `SIDEWORLD_DIR` (default: `../sideworld` relative to this
+> **Where they live.** The project was renamed sideworld → paraglobe; the GitHub *org* kept its
+> name, so the three repositories are `sideworld/specimen`, `sideworld/benchmarks` and
+> `sideworld/paraglobe`. Cloning each one gives the directory name the sibling paths above and
+> the `PARAGLOBE_DIR` default expect.
+
+The adapters find the runtime through `PARAGLOBE_DIR` (default: `../paraglobe` relative to this
 repo's root) and the specimen through `SPECIMEN_DIR` (default `../specimen`). Set them if your layout
 differs.
 
@@ -57,9 +62,9 @@ differs.
 ```sh
 # L1 — the specimen at 10M rows, forked
 (cd ../specimen && make up && make scale N=10000000 SEED=42 TENANTS=5 && make probe)   # data + docs/PROBE-10M.md
-../sideworld/vm/build-kernel.sh && ../sideworld/vm/build-rootfs.sh && ../sideworld/vm/bake-rootfs.sh
-../sideworld/vm/boot.sh 1 && ../sideworld/vm/snapshot.sh 1 base && ../sideworld/vm/measure.sh base 5   # FORK-EXPERIMENT-2
-../sideworld/vm/measure-mem.sh baseline6g 6144                                                              # FORK-EXPERIMENT-3
+../paraglobe/vm/build-kernel.sh && ../paraglobe/vm/build-rootfs.sh && ../paraglobe/vm/bake-rootfs.sh
+../paraglobe/vm/boot.sh 1 && ../paraglobe/vm/snapshot.sh 1 base && ../paraglobe/vm/measure.sh base 5   # FORK-EXPERIMENT-2
+../paraglobe/vm/measure-mem.sh baseline6g 6144                                                              # FORK-EXPERIMENT-3
 
 # L2 — TrainTicket, clone to a snapshotted VM with zero decisions (~10 min), then fork and swap a PR
 benchmarks/trainticket/onboard.sh
@@ -67,7 +72,7 @@ benchmarks/trainticket/vm-fork-measure.sh ttbase 1 --probe
 benchmarks/trainticket/pr-swap.sh 1
 
 # L3 — Mastodon, through the generic runbook driven by its spec
-../sideworld/vm/onboard-generic.sh benchmarks/mastodon/app.spec
+../paraglobe/vm/onboard-generic.sh benchmarks/mastodon/app.spec
 benchmarks/mastodon/vm-fork-measure.sh mdbase 1
 ```
 

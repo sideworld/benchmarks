@@ -62,4 +62,4 @@ After the last statement returned, the backlog took **8 s** to drain — the flo
 - Run 20260923T142311Z (superseded): three tokens per probe but one posting account; the migration itself measured the same (CREATE INDEX 192.3 s, SET NOT NULL 137.5 s of which 97.8 s queued for the AccessExclusiveLock and 39.7 s holding it; every probe timed out at 30 s throughout), and 139 of the 151 post_status requests in the after window were 429 from the per-account status limit, which the queued posts had exhausted the moment the lock released.
 - Run 20260923T140318Z (superseded): one token, unauthenticated public timeline; 429s on a third of the authenticated probes before the migration and on the smoke's followers page after it. The lock and duration numbers of that run were consistent with this one (CREATE INDEX 132.9 s, SET NOT NULL 150.3 s, AccessExclusiveLock 38.3 s).
 
-<sub>Sideworld Migration Check · run `20260923T170300Z` · fork restore 3.3 s / 4.5 s · every number above is from this run on this box</sub>
+<sub>Paraglobe Migration Check · run `20260923T170300Z` · fork restore 3.3 s / 4.5 s · every number above is from this run on this box</sub>

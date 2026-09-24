@@ -5,9 +5,9 @@
 #   benchmarks/posthog/forks.sh up [n] | down [n] | isolation [n]
 # Fork k answers on 127.0.0.1:3<kk>80. Owns tank/ph-snapfork<k>, tank/ph-snapfork<k>-rootfs, fc-phf<k>.
 set -euo pipefail
-SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); SW=${SIDEWORLD_DIR:-/tank/work/sideworld}; SPEC=$SPEC_DIR/app.spec
+SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); SW=${PARAGLOBE_DIR:-/tank/work/paraglobe}; SPEC=$SPEC_DIR/app.spec
 ACT=${1:?up|down|isolation}; N=${2:-3}
-EMAIL=${PH_ADMIN_EMAIL:-sideworld@example.test}; PASS=${PH_ADMIN_PASS:-Sideworld-12345678}
+EMAIL=${PH_ADMIN_EMAIL:-paraglobe@example.test}; PASS=${PH_ADMIN_PASS:-Paraglobe-12345678}
 port() { printf '3%02d80' "$1"; }
 el() { echo "$1 $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}'; }
 pss() { awk '/^Pss:/ {s+=$2} END {printf "%d", s/1024}' "/proc/$1/smaps" 2>/dev/null || echo 0; }

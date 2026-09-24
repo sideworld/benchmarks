@@ -7,7 +7,7 @@
 #   benchmarks/mastodon/pr-swap.sh <k> [image-only]
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); MD=${MD_DIR:-/tank/work/mastodon}
-SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
+PARAGLOBE_DIR=${PARAGLOBE_DIR:-$(cd "$HERE/../../../paraglobe" 2>/dev/null && pwd || echo "$HERE/../../../paraglobe")}  # sibling checkout of the fork runtime
 K=${1:?k}; KK=$(printf '%02d' "$K"); WT=$MD-pr; IMG=ghcr.io/mastodon/mastodon:v4.7.2-pr
 H=(-H "X-Forwarded-Proto: https" -H "Host: mastodon.test")
 [ -d "$WT" ] || (cd "$MD" && git worktree add -q --detach "$WT" HEAD)
@@ -19,7 +19,7 @@ t0=$(date +%s.%N)
 docker build -q -t "$IMG" -f "$WT/Dockerfile.pr" "$WT" >/dev/null 2>&1
 t1=$(date +%s.%N)
 [ "${2:-}" = image-only ] && { echo "built $IMG in $(echo "$t0 $t1" | awk '{printf "%.1f", $2-$1}')s"; exit 0; }
-SSH="ssh -p 3${KK}22 -i $SIDEWORLD_DIR/vm/out/id_specimen_vm -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+SSH="ssh -p 3${KK}22 -i $PARAGLOBE_DIR/vm/out/id_specimen_vm -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 docker save "$IMG" | $SSH root@127.0.0.1 'cat > /tmp/pr.tar'
 t2=$(date +%s.%N)
 $SSH root@127.0.0.1 'docker load -q -i /tmp/pr.tar >/dev/null && docker tag ghcr.io/mastodon/mastodon:v4.7.2-pr ghcr.io/mastodon/mastodon:v4.7.2 && rm /tmp/pr.tar

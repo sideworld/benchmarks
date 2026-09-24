@@ -29,7 +29,7 @@ SELECT p.team_id, pp.id, p.distinct_id, 0
 FROM gen_p p JOIN posthog_person pp ON pp.uuid = p.uuid AND pp.team_id = p.team_id;
 
 -- what gen.sh copies into ClickHouse's person / person_distinct_id2
-CREATE TABLE IF NOT EXISTS sideworld_gen_persons AS
+CREATE TABLE IF NOT EXISTS paraglobe_gen_persons AS
 SELECT p.team_id, p.pn, p.distinct_id, p.uuid, pp.properties::text AS properties, pp.is_identified::int AS is_identified, pp.created_at
 FROM gen_p p JOIN posthog_person pp ON pp.uuid = p.uuid AND pp.team_id = p.team_id;
 COMMIT;

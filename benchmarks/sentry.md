@@ -160,7 +160,7 @@ most of the worker tier.
 POST /api/1/store/  (X-Sentry-Auth, sentry_key=<project key>)   -> HTTP 200
   {"id":"ba84a8f2299f4aed826966269d23ba5a"}
 GET  /api/0/projects/sentry/internal/issues/                    -> INTERNAL-1
-  "SideworldReadiness: first event through Relay", events 1
+  "ParaglobeReadiness: first event through Relay", events 1
 ```
 
 **Store → searchable issue: 2.9 s, 2.9 s, 4.0 s** over three runs.
@@ -498,7 +498,7 @@ did not complete" rather than naming a failing check, and a red comment that is 
 is worse than no red comment. `sideworld/train-ticket` #2 already demonstrates the red path.
 
 Getting the run to fire at all took one correction worth recording: GitHub lists a repository's
-workflows **from its default branch only**. With `sideworld.yml` pushed on the pinned branch but
+workflows **from its default branch only**. With `paraglobe.yml` pushed on the pinned branch but
 not on the fork's `master`, opening the pull request produced no run and no error — the Actions tab
 showed the seven workflows inherited from `getsentry/self-hosted`. Repointing the fork's default
 branch at the pinned branch fixed it. Nothing was force-pushed.

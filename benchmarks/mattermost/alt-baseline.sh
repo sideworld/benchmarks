@@ -59,7 +59,7 @@ services:
     container_name: ${PROJ}-server
     # the CHANGED server, the same image the Firecracker fork was given, so the two paths are
     # being compared on the same work rather than on different work
-    image: "${ALT_IMAGE:-sideworld/mattermost-server:v11.11.0-pr}"
+    image: "${ALT_IMAGE:-paraglobe/mattermost-server:v11.11.0-pr}"
     ports: !override ["127.0.0.1:$PORT:8065"]
 EOF
 
@@ -95,9 +95,9 @@ t0=$(date +%s.%N); N1=$(page); T_H1=$(ms "$t0")
 t0=$(date +%s.%N); NW=$(page); T_HW=$(ms "$t0")
 [ "${N1:-0}" -ge 55 ] || { echo "  channel history returned $N1 posts, not a page" >&2; exit 1; }
 echo "  t_history_1=${T_H1} ms ($N1 posts, cold caches)   t_history_w=${T_HW} ms ($NW posts, warm)"
-echo "  marker: SideworldPR=$(curl -sS -m 10 "http://127.0.0.1:$PORT/api/v4/system/ping" | python3 -c "
+echo "  marker: ParaglobePR=$(curl -sS -m 10 "http://127.0.0.1:$PORT/api/v4/system/ping" | python3 -c "
 import json,sys
-try: print(json.load(sys.stdin).get('SideworldPR','<absent>'))
+try: print(json.load(sys.stdin).get('ParaglobePR','<absent>'))
 except Exception: print('<no json>')")"
 echo
 echo "alt-baseline $PROJ: clone ${T_CLONE}s, api ${T_API}s, history cold ${T_H1} ms / warm ${T_HW} ms, on port $PORT"

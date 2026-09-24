@@ -1,6 +1,6 @@
 # PostHog — the five numbers
 
-Sideworld onboarded `PostHog/posthog` at `posthog-live-20260907-105219` (the hobby stack: Django,
+Paraglobe onboarded `PostHog/posthog` at `posthog-live-20260907-105219` (the hobby stack: Django,
 Celery, Temporal, seven Node consumers, eleven Rust/Go sidecars, Postgres, ClickHouse + ZooKeeper,
 Redpanda, Redis, MinIO, SeaweedFS — 38 containers) onto a fork-per-pull-request runtime on one
 machine (Ryzen 7 7700, 64 GB, 2×1 TB NVMe). Every number was measured on that box on

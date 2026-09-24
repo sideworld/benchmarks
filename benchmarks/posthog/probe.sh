@@ -11,7 +11,7 @@
 set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BASE=${1:-${PH_BASE:-http://127.0.0.1:8100}}
-EMAIL=${PH_ADMIN_EMAIL:-sideworld@example.test}; PASS=${PH_ADMIN_PASS:-Sideworld-12345678}
+EMAIL=${PH_ADMIN_EMAIL:-paraglobe@example.test}; PASS=${PH_ADMIN_PASS:-Paraglobe-12345678}
 CJ=$(mktemp); trap 'rm -f "$CJ"' EXIT
 S=$(date +%s); t0=$(date +%s.%N); el() { echo "$1 $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}'; }
 j() { python3 -c "import json,sys
@@ -29,7 +29,7 @@ curl -sS -m 30 -c "$CJ" -o /dev/null "$BASE/login"
 CSRF=$(awk '$6=="posthog_csrftoken"{print $7}' "$CJ")
 H=(-H "Content-Type: application/json" -H "X-CSRFToken: $CSRF" -H "Referer: $BASE/" -b "$CJ" -c "$CJ")
 code=$(curl -sS -m 60 "${H[@]}" -o /tmp/ph-signup.json -w '%{http_code}' -X POST "$BASE/api/signup/" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"first_name\":\"Side\",\"organization_name\":\"Sideworld\",\"role_at_organization\":\"engineering\"}")
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"first_name\":\"Side\",\"organization_name\":\"Paraglobe\",\"role_at_organization\":\"engineering\"}")
 [ "$code" = 201 ] && echo "    signed up $EMAIL (HTTP 201) -- first boot"
 login() { curl -sS -m 60 "${H[@]}" -o /tmp/ph-login.json -w '%{http_code}' -X POST "$BASE/api/login/" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}"; }
 code=$(login)
@@ -58,9 +58,9 @@ echo "    project $PID, token ${TOKEN:0:8}…"
 printf '%s\n' "$PID" > "$SPEC_DIR/.project"; umask 077; printf '%s\n' "$TOKEN" > "$SPEC_DIR/.token"
 
 echo "==> capture one event through /capture/ (Caddy -> rust capture -> Redpanda)"
-EV="sideworld_round_trip"; DID="probe-$S"
+EV="paraglobe_round_trip"; DID="probe-$S"
 code=$(curl -sS -m 30 -o /tmp/ph-cap.json -w '%{http_code}' -H "Content-Type: application/json" -X POST "$BASE/capture/" \
-  -d "{\"api_key\":\"$TOKEN\",\"event\":\"$EV\",\"distinct_id\":\"$DID\",\"properties\":{\"probe\":$S,\"\$lib\":\"sideworld\"},\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}")
+  -d "{\"api_key\":\"$TOKEN\",\"event\":\"$EV\",\"distinct_id\":\"$DID\",\"properties\":{\"probe\":$S,\"\$lib\":\"paraglobe\"},\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}")
 [ "$code" = 200 ] || { echo "    capture HTTP $code: $(cut -c1-160 /tmp/ph-cap.json)" >&2; exit 1; }
 echo "    accepted (HTTP 200) at $(el $t0)s"
 

@@ -8,7 +8,7 @@ set -euo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BASE=${1:-${PH_BASE:-http://127.0.0.1:8100}}; RUNS=${2:-5}; THRESHOLD_MS=${THRESHOLD_MS:-1000}
 CHC=${PH_CH_CONTAINER:-ph-clickhouse-1}
-EMAIL=${PH_ADMIN_EMAIL:-sideworld@example.test}; PASS=${PH_ADMIN_PASS:-Sideworld-12345678}
+EMAIL=${PH_ADMIN_EMAIL:-paraglobe@example.test}; PASS=${PH_ADMIN_PASS:-Paraglobe-12345678}
 CJ=$(mktemp); trap 'rm -f "$CJ"' EXIT
 j() { python3 -c "import json,sys
 try: d=json.load(sys.stdin)

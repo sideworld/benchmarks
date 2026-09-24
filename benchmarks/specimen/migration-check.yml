@@ -85,7 +85,7 @@ probes:
 # the NEW app: the conversations image built from scenario B, shipped into the fork and recreated.
 # Prints the image name it swapped in.
 new_image: |
-  IMG=sideworld-mc/specimen/conversations:scenario-b
+  IMG=paraglobe-mc/specimen/conversations:scenario-b
   docker save "$IMG" | ssh -p "$CI_PORT_SSH" $CI_SSHO root@127.0.0.1 'cat > /tmp/mc.tar'
   ssh -p "$CI_PORT_SSH" $CI_SSHO root@127.0.0.1 "docker load -q -i /tmp/mc.tar >/dev/null && docker tag $IMG specimen/conversations:local && rm -f /tmp/mc.tar && cd $CI_GUEST_APP_DIR && docker compose $CI_GUEST_COMPOSE up -d --no-deps --force-recreate conversations" >/dev/null 2>&1
   sleep 10

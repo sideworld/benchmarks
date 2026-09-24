@@ -1,4 +1,4 @@
--- Sideworld data-plane generator for Sentry's errors dataset.
+-- Paraglobe data-plane generator for Sentry's errors dataset.
 --
 -- Writes rows straight into ClickHouse's errors_local, mapped onto the 20,000 synthetic groups
 -- created in Postgres by gen-groups.sql. The mapping has to be deterministic on both sides or the

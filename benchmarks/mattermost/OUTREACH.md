@@ -1,6 +1,6 @@
 # Mattermost — the five numbers
 
-Sideworld onboarded `mattermost/mattermost` v11.11.0 onto a fork-per-pull-request runtime on one
+Paraglobe onboarded `mattermost/mattermost` v11.11.0 onto a fork-per-pull-request runtime on one
 machine (Ryzen 7 7700, 64 GB, 2×1 TB NVMe). Every number below was measured on that box on
 2026-09-23 and is traceable to a command in [`benchmarks/mattermost.md`](../mattermost.md).
 

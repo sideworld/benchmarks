@@ -6,7 +6,7 @@
 #   benchmarks/trainticket/fork.sh <n> [snapshot]      (n = 1..3; ports offset by 13000*n)
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
+PARAGLOBE_DIR=${PARAGLOBE_DIR:-$(cd "$HERE/../../../paraglobe" 2>/dev/null && pwd || echo "$HERE/../../../paraglobe")}  # sibling checkout of the fork runtime
 N=${1:?n}; SNAP=${2:-tt-base}
 TT=${TT_DIR:-/tank/work/trainticket}
 P=tt-f$N; OFF=$((13000 * N))
@@ -17,7 +17,7 @@ log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 log "fork $N from @$SNAP: clones + override (port offset +$OFF)"
 t0=$(date +%s.%N)
 FORK_MAP="$HERE/fork.map" OFFSET=$OFF PROJECT=$P OUT=$OUT \
-  "$SIDEWORLD_DIR/vm/mkfork-generic.sh" "$TT" "$N" "$SNAP" -f "$TT/docker-compose.yml" -f "$HERE/compose/docker-compose.tt.yml" >/dev/null
+  "$PARAGLOBE_DIR/vm/mkfork-generic.sh" "$TT" "$N" "$SNAP" -f "$TT/docker-compose.yml" -f "$HERE/compose/docker-compose.tt.yml" >/dev/null
 t_clone=$(echo "$t0 $(date +%s.%N)" | awk '{printf "%.2f", $2-$1}')
 n_clones=$(zfs list -H -o name -t filesystem | grep -c "^tank/tt-f$N-")
 log "$n_clones clones + override in ${t_clone}s"

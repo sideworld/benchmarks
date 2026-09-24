@@ -8,10 +8,10 @@ APP_TAG=posthog-live-20260907-105219
 APP_DIR=/tank/work/posthog
 PROJECT=ph
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# Their hobby file with its `./posthog/` layout prefix folded (compose/docker-compose.hobby.sideworld.yml),
-# plus the Sideworld override. Both `extends:` docker-compose.base.yml in the checkout, so that
+# Their hobby file with its `./posthog/` layout prefix folded (compose/docker-compose.hobby.paraglobe.yml),
+# plus the Paraglobe override. Both `extends:` docker-compose.base.yml in the checkout, so that
 # file must travel into the guest too: EXTRA_COPY.
-COMPOSE_FILES="$SPEC_DIR/compose/docker-compose.hobby.sideworld.yml $SPEC_DIR/compose/docker-compose.ph.yml"
+COMPOSE_FILES="$SPEC_DIR/compose/docker-compose.hobby.paraglobe.yml $SPEC_DIR/compose/docker-compose.ph.yml"
 # hobby.env / vm.env are what bin/deploy-hobby writes, with this box's throwaway secrets; both are
 # gitignored. compose/make-env.sh regenerates them after a clone (hobby.env.example shows the shape).
 ENV_FILE=$SPEC_DIR/compose/hobby.env

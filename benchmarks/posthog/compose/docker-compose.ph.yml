@@ -1,4 +1,4 @@
-# Sideworld's override for PostHog hobby. Datasets, ports, sinks, and the two upstream facts a
+# Paraglobe's override for PostHog hobby. Datasets, ports, sinks, and the two upstream facts a
 # clean install cannot get past today. Nothing here changes what PostHog runs, only where its
 # bytes live and where its outbound calls go.
 services:
@@ -36,7 +36,7 @@ services:
     ports: !override ["127.0.0.1:8181:8080"]
   # ---------------------------------------------------------------- outbound -> sinks
   web:
-    environment: &sideworld_env
+    environment: &paraglobe_env
       SITE_URL: "${PH_SITE_URL:-http://localhost:8100}"
       OBJECT_STORAGE_PUBLIC_ENDPOINT: "${PH_SITE_URL:-http://localhost:8100}"
       # the in-app SDK reports to us.i.posthog.com unless told not to
@@ -46,14 +46,14 @@ services:
       EMAIL_HOST: "maildev"
       EMAIL_PORT: "1025"
       EMAIL_USE_TLS: "false"
-      DEFAULT_FROM_EMAIL: "posthog@sideworld.test"
+      DEFAULT_FROM_EMAIL: "posthog@paraglobe.test"
       # keys that are blank in .env anyway; explicit so nothing dials an AI provider
       ANTHROPIC_API_KEY: ""
       OPENAI_API_KEY: ""
   worker:
-    environment: *sideworld_env
+    environment: *paraglobe_env
   temporal-django-worker:
-    environment: *sideworld_env
+    environment: *paraglobe_env
   plugins:
     environment:
       SITE_URL: "${PH_SITE_URL:-http://localhost:8100}"

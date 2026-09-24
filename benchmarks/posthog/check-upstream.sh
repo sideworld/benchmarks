@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# compose/docker-compose.hobby.sideworld.yml is THEIR hobby file with one mechanical edit. This
+# compose/docker-compose.hobby.paraglobe.yml is THEIR hobby file with one mechanical edit. This
 # proves it, so the derived file cannot drift from the pinned original without anyone noticing.
 #   benchmarks/posthog/check-upstream.sh   -> exit 0 when the derived file == sed of the original
 set -uo pipefail
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC=${PH_SRC:-/tank/work/posthog}
 want=$(sed 's#\./posthog/#./#g' "$SRC/docker-compose.hobby.yml")
-have=$(sed '1,/^# Regenerate:/d' "$SPEC_DIR/compose/docker-compose.hobby.sideworld.yml")   # drop our header (ends at the Regenerate line)
+have=$(sed '1,/^# Regenerate:/d' "$SPEC_DIR/compose/docker-compose.hobby.paraglobe.yml")   # drop our header (ends at the Regenerate line)
 if diff <(printf '%s\n' "$want") <(printf '%s\n' "$have") >/dev/null; then
   echo "  derived hobby file == sed 's#./posthog/#./#g' of theirs at $(git -C "$SRC" describe --tags --exact-match 2>/dev/null || git -C "$SRC" rev-parse --short HEAD)"
 else

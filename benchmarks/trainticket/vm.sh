@@ -5,7 +5,7 @@
 #   benchmarks/trainticket/vm.sh build|bake|boot|stop|snapshot|fork|unfork|net-ns ARGS...
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SIDEWORLD_DIR=${SIDEWORLD_DIR:-$(cd "$HERE/../../../sideworld" 2>/dev/null && pwd || echo "$HERE/../../../sideworld")}  # sibling checkout of the fork runtime
+PARAGLOBE_DIR=${PARAGLOBE_DIR:-$(cd "$HERE/../../../paraglobe" 2>/dev/null && pwd || echo "$HERE/../../../paraglobe")}  # sibling checkout of the fork runtime
 cmd=${1:?cmd}; shift
 export APP=tt
 export APP_DIR=/tank/work/trainticket
@@ -13,7 +13,7 @@ export COMPOSE_FILES="/tank/work/trainticket/docker-compose.yml $HERE/compose/do
 export ENV_FILE=$HERE/compose/tt.env
 export DATA_MAP=$HERE/vm-data.map
 export SIZE_MB=${SIZE_MB:-24576}
-export ROOTFS_IMG=$SIDEWORLD_DIR/vm/out/tt-rootfs.ext4
+export ROOTFS_IMG=$PARAGLOBE_DIR/vm/out/tt-rootfs.ext4
 export SNAPSHOT=tank/tt-vm-data@tt-base
 export CLONE_PREFIX=tank/tt-vmfork
 export SNAPFORK_PREFIX=tank/tt-snapfork
@@ -23,13 +23,13 @@ export GUEST_PORTS="8080 12340 12346 12347"          # ui, auth, travel, contact
 export APP_UNIT=app.service APP_DIR_GUEST=/opt/app
 export MEM_MIB=${MEM_MIB:-24576} VCPUS=${VCPUS:-8}
 case "$cmd" in
-  build)  exec "$SIDEWORLD_DIR/vm/build-rootfs-generic.sh" "$@" ;;
-  bake)   FC_ID=tt${1:-9} READY_WAIT=${READY_WAIT:-1500} exec "$SIDEWORLD_DIR/vm/bake-rootfs.sh" "$@" ;;   # TT's UI answers long before its JVMs
-  boot)   FC_ID=tt$1 exec "$SIDEWORLD_DIR/vm/boot.sh" "$@" ;;
-  stop)   FC_ID=tt$1 exec "$SIDEWORLD_DIR/vm/stop.sh" "$@" ;;
-  snapshot) FC_ID=tt$1 exec "$SIDEWORLD_DIR/vm/snapshot.sh" "$@" ;;
-  fork)   exec "$SIDEWORLD_DIR/vm/fork.sh" "$@" ;;
-  unfork) exec "$SIDEWORLD_DIR/vm/unfork.sh" "$@" ;;
-  net-ns) exec "$SIDEWORLD_DIR/vm/net-ns.sh" "$@" ;;
+  build)  exec "$PARAGLOBE_DIR/vm/build-rootfs-generic.sh" "$@" ;;
+  bake)   FC_ID=tt${1:-9} READY_WAIT=${READY_WAIT:-1500} exec "$PARAGLOBE_DIR/vm/bake-rootfs.sh" "$@" ;;   # TT's UI answers long before its JVMs
+  boot)   FC_ID=tt$1 exec "$PARAGLOBE_DIR/vm/boot.sh" "$@" ;;
+  stop)   FC_ID=tt$1 exec "$PARAGLOBE_DIR/vm/stop.sh" "$@" ;;
+  snapshot) FC_ID=tt$1 exec "$PARAGLOBE_DIR/vm/snapshot.sh" "$@" ;;
+  fork)   exec "$PARAGLOBE_DIR/vm/fork.sh" "$@" ;;
+  unfork) exec "$PARAGLOBE_DIR/vm/unfork.sh" "$@" ;;
+  net-ns) exec "$PARAGLOBE_DIR/vm/net-ns.sh" "$@" ;;
   *) echo "unknown: $cmd" >&2; exit 2 ;;
 esac

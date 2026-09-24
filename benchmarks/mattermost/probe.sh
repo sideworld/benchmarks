@@ -50,7 +50,7 @@ else
   why=$(printf '%s' "$RESP" | python3 -c "import json,sys
 try: print(json.load(sys.stdin).get('id',''))
 except Exception: print('')")
-  LOGIN=${MM_PROBE_USER:-core1}; PW=${MM_PROBE_PW_EXISTING:-Sideworld-1234}
+  LOGIN=${MM_PROBE_USER:-core1}; PW=${MM_PROBE_PW_EXISTING:-Paraglobe-1234}
   USER=$(api "$BASE/api/v4/users/username/$LOGIN" | jq_ "['id']")
   [ -n "$USER" ] || { echo "cannot create a user ($why) and $LOGIN does not exist either" >&2; exit 1; }
   api -X POST "$BASE/api/v4/teams/$TEAM/members" -d "{\"team_id\":\"$TEAM\",\"user_id\":\"$USER\"}" >/dev/null
@@ -66,7 +66,7 @@ HDR=$(mktemp); curl -sS -m 30 -D "$HDR" -o /dev/null -H 'Content-Type: applicati
   -X POST "$BASE/api/v4/users/login" -d "{\"login_id\":\"$LOGIN\",\"password\":\"$PW\"}"
 UTOK=$(awk 'tolower($1)=="token:"{print $2}' "$HDR" | tr -d '\r'); rm -f "$HDR"
 [ -n "$UTOK" ] || { echo "login produced no session token" >&2; exit 1; }
-MSG="sideworld round trip $S"
+MSG="paraglobe round trip $S"
 POST=$(curl -sS -m 30 -H "Authorization: Bearer $UTOK" -H 'Content-Type: application/json' \
   -X POST "$BASE/api/v4/posts" -d "{\"channel_id\":\"$CH\",\"message\":\"$MSG\"}" | jq_ "['id']")
 echo "    post $POST"

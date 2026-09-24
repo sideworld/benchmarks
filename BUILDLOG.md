@@ -1,7 +1,7 @@
 # BUILDLOG (benchmarks)
 
 What was hard, per world, from the evidence side: the generators, the probes, the adapters, and
-the mistakes made writing them. The runtime's own log is `../sideworld/docs/BUILDLOG.md`. Earlier
+the mistakes made writing them. The runtime's own log is `../paraglobe/docs/BUILDLOG.md`. Earlier
 worlds' equivalents live inside their ledgers (`benchmarks/<world>.md`, "where the time went");
 this file starts with PostHog.
 

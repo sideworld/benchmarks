@@ -58,4 +58,4 @@ After the last statement returned, the backlog took **8 s** to drain — the flo
 
 - Workload: 4 probes round-robin as the admin; one of them writes a post into the busiest channel, i.e. an INSERT into Posts while the index builds.
 
-<sub>Sideworld Migration Check · run `20260923T190335Z` · fork restore 4.5 s / 4.1 s · every number above is from this run on this box</sub>
+<sub>Paraglobe Migration Check · run `20260923T190335Z` · fork restore 4.5 s / 4.1 s · every number above is from this run on this box</sub>

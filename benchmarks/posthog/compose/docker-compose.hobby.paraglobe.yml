@@ -1,8 +1,8 @@
-# Sideworld: PostHog's docker-compose.hobby.yml at posthog-live-20260907-105219 (e04da21b), with
+# Paraglobe: PostHog's docker-compose.hobby.yml at posthog-live-20260907-105219 (e04da21b), with
 # ONE mechanical change -- every `./posthog/` bind prefix is `./`. Their installer clones the
 # repository into a subdirectory of the project directory; here the checkout IS the project
 # directory, which is also what docker-compose.base.yml (which this file `extends`) already
-# assumes. Nothing else is edited; everything Sideworld needs is in docker-compose.ph.yml.
+# assumes. Nothing else is edited; everything Paraglobe needs is in docker-compose.ph.yml.
 #
 # Regenerate: sed 's#\./posthog/#./#g' docker-compose.hobby.yml   (check-upstream.sh diffs it)
 #

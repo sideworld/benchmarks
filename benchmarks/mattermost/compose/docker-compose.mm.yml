@@ -1,4 +1,4 @@
-# Sideworld's Mattermost world: Postgres + MinIO + Inbucket + the server.
+# Paraglobe's Mattermost world: Postgres + MinIO + Inbucket + the server.
 #
 # Why this file rather than server/build/docker-compose.yml directly:
 #   - that file is a *developer test harness*, not a deployment. It starts fourteen services (two
@@ -121,7 +121,7 @@ services:
 
   mattermost:
     container_name: mm-server
-    image: "${MM_SERVER_IMAGE:-sideworld/mattermost-server:v11.11.0}"
+    image: "${MM_SERVER_IMAGE:-paraglobe/mattermost-server:v11.11.0}"
     networks: [mm-test]
     restart: always
     depends_on:
