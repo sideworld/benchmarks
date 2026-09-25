@@ -1,0 +1,35 @@
+# PAR-73: two ClickHouse replicas and one Keeper. Host ports bind 127.0.0.1 only; the default user
+# has no password (CLICKHOUSE_SKIP_USER_SETUP), which is why. Volume names are per compose project,
+# so the quiesce check can start a restored copy beside the original (run.sh).
+name: ${COMPOSE_PROJECT_NAME:-par73}
+x-ch: &ch
+  image: clickhouse/clickhouse-server:25.8.33.6
+  environment: {CLICKHOUSE_SKIP_USER_SETUP: "1"}
+  ulimits: {nofile: {soft: 262144, hard: 262144}}
+  depends_on: {keeper: {condition: service_healthy}}
+  healthcheck: {test: ["CMD", "clickhouse-client", "-q", "SELECT 1"], interval: 2s, timeout: 5s, retries: 60}
+services:
+  keeper:
+    image: clickhouse/clickhouse-keeper:25.8.33.6
+    volumes:
+      - ../config/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper:/var/lib/clickhouse-keeper
+    healthcheck: {test: ["CMD-SHELL", "clickhouse-keeper-client -h 127.0.0.1 -p 9181 -q 'ls /' >/dev/null"], interval: 2s, timeout: 5s, retries: 60}
+  ch1:
+    <<: *ch
+    hostname: ch1
+    ports: ["127.0.0.1:${CH1_PORT:-18123}:8123"]
+    volumes:
+      - ../config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ../config/macros-ch1.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ch1:/var/lib/clickhouse
+  ch2:
+    <<: *ch
+    hostname: ch2
+    ports: ["127.0.0.1:${CH2_PORT:-28123}:8123"]
+    volumes:
+      - ../config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ../config/macros-ch2.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ../config/lagging.xml:/etc/clickhouse-server/config.d/lagging.xml:ro
+      - ch2:/var/lib/clickhouse
+volumes: {keeper: {}, ch1: {}, ch2: {}}

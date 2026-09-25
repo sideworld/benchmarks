@@ -1,0 +1,83 @@
+# PAR-73's scenario for the Migration Check: what rehearse.py runs, in the Migration Check's shape
+# (naive form, safe form, the compatibility matrix during settling, a round trip at the end). The
+# Migration Check's own harness (paraglobe ops/migration-check.sh) speaks Postgres only -- psql,
+# pg_locks, table snapshots -- so this scenario is run by rehearse.py, which reads these keys.
+label: "drop an unused skip index, then add a column, then deploy the writer that inserts it"
+table: events
+
+# The two worlds: compose file, schema, each replica's HTTP port on 127.0.0.1 (CH1_PORT, CH2_PORT and
+# CH_PORT override them, as in the compose files), and which replica is made to lag.
+worlds:
+  replicated: {compose: compose/replicated.yml, schema: sql/schema-replicated.sql, replicas: {ch1: 18123, ch2: 28123}, lagging: ch2}
+  single:     {compose: compose/single.yml,     schema: sql/schema-single.sql,     replicas: {ch: 38123},             lagging: ch}
+
+# The history. rows: generated history (tens of millions, PAR-73), in chunks so no one INSERT holds
+# the whole table in memory. now: the fixed "now" the generator's timestamps count back from.
+rows: 30000000
+chunk: 5000000
+now: "2026-09-25 00:00:00"
+
+# The writers. Each is one process sending batches round-robin to every replica of its world (all
+# of them take writes, like the incident's writer replicas), retrying a failed insert `retries` times on the same replica, then dropping it.
+writer:
+  batches_per_s: 4
+  rows_per_batch: 1000
+  retries: 3
+  backoff_s: [0.5, 1, 2]
+
+# Seconds. warm: writers running before the "before" window; before: the old writer alone;
+# settle_max: how long to wait for the change to reach every replica before calling it stuck;
+# after: writers keep running once it has; sample: the sampler's period.
+windows: {warm: 15, before: 60, settle_max: 900, after: 60, sample: 0.5}
+
+# Why a replica lags. PAR-73 says the ADD COLUMN "waits behind the mutation on writer replicas";
+# the rehearsal makes ch2 that replica in one of two ways, and every run records which.
+#   pool: ch2's background pool is 2 threads (config/lagging.xml), so under continuous inserts the
+#         index-drop mutation competes with merges for slots. Nothing else is done to it: whether
+#         it lags, and for how long, is what the run measures.
+#   held: ch2's merges and mutations are stopped on the events table (SYSTEM STOP MERGES events)
+#         from just before the migration for hold_s seconds, then started. A stand-in for a
+#         replica whose queue is backed up; induced, and labelled so in the results.
+lag:
+  hold_s: 120
+
+# The naive form: the two migrations back to back, as a runner applies them (default settings:
+# alter_sync=1 waits for the replica it ran on, mutations_sync=0 waits for no mutation), then the
+# new writer deployed the moment the runner reports success.
+naive:
+  description: "DROP INDEX, then ADD COLUMN, on ch1 with default settings; the new writer starts when the runner returns"
+  run_on: ch1
+  statements:
+    - sql: "ALTER TABLE events DROP INDEX idx_payload"
+    - sql: "ALTER TABLE events ADD COLUMN region LowCardinality(String) DEFAULT ''"
+  deploy: on_return
+
+# The safe form: the column first, applied on every replica before the statement returns
+# (alter_sync=2), and the deploy gated on the column being visible on every replica (the gate is
+# the part that matters: alter_sync=2 gives up after replication_wait_for_inactive_replica_timeout
+# for an inactive replica and the runner could still return early). The index is dropped after the
+# deploy, when its mutation can hold up only later ALTERs, not the writer.
+safe:
+  description: "ADD COLUMN with alter_sync=2; deploy the new writer only once every replica has the column; then DROP INDEX"
+  run_on: ch1
+  statements:
+    - sql: "ALTER TABLE events ADD COLUMN region LowCardinality(String) DEFAULT '' SETTINGS alter_sync = 2"
+  deploy: when_column_on_every_replica
+  after_deploy:
+    - sql: "ALTER TABLE events DROP INDEX idx_payload"
+
+# What "deployed" is waiting to see, and the compatibility matrix during settling: the old writer
+# keeps running across the change (old app, new schema) and the new writer starts at the deploy
+# (new app, new schema). Each is a cell, judged on its own round trip.
+column: region
+matrix:
+  - {cell: old-app-new-schema, writer: old, from: start}
+  - {cell: new-app-new-schema, writer: new, from: deploy}
+
+# The runs run.sh makes, each on a fresh world: form x world x lag.
+runs:
+  - {name: naive-pool,   form: naive, world: replicated, lag: pool}
+  - {name: naive-held,   form: naive, world: replicated, lag: held}
+  - {name: safe-held,    form: safe,  world: replicated, lag: held}
+  - {name: single-pool,  form: naive, world: single,     lag: pool}
+  - {name: single-held,  form: naive, world: single,     lag: held}

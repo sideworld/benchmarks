@@ -1,0 +1,19 @@
+<!-- One ClickHouse Keeper node: the coordination store both replicas register in. A single node is
+     enough for the rehearsal (a Keeper quorum is not what PAR-73 is about); see the README. -->
+<clickhouse>
+    <logger><level>information</level><console>1</console></logger>
+    <listen_host>0.0.0.0</listen_host>
+    <keeper_server>
+        <tcp_port>9181</tcp_port>
+        <server_id>1</server_id>
+        <log_storage_path>/var/lib/clickhouse-keeper/log</log_storage_path>
+        <snapshot_storage_path>/var/lib/clickhouse-keeper/snapshots</snapshot_storage_path>
+        <coordination_settings>
+            <operation_timeout_ms>10000</operation_timeout_ms>
+            <session_timeout_ms>30000</session_timeout_ms>
+        </coordination_settings>
+        <raft_configuration>
+            <server><id>1</id><hostname>keeper</hostname><port>9234</port></server>
+        </raft_configuration>
+    </keeper_server>
+</clickhouse>

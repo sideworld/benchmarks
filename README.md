@@ -59,6 +59,7 @@ failures are what make the rest checkable:
 | [`docs/FORK-EXPERIMENT-3.md`](docs/FORK-EXPERIMENT-3.md) | where a fork's memory actually goes: 473 MB idle, churn is the cost, KSM |
 | [`benchmarks/<system>.md`](benchmarks/) | one ledger per onboarded system: time spent, what broke, protocol results, caveat |
 | [`benchmarks/<system>/`](benchmarks/) | that system's adapters — `app.spec`, Compose override, probe, data generator, fork runner |
+| [`benchmarks/incident-shapes/`](benchmarks/incident-shapes/) | rehearsals of published incidents' shapes on scratch worlds, each with what it does not claim |
 | [`benchmarks/lib/`](benchmarks/lib/) | the bulk-load profile every generator follows, and why RI triggers come off for a load |
 
 ## Prerequisites
