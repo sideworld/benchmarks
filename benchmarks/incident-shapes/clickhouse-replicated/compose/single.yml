@@ -1,0 +1,14 @@
+# PAR-73's single-node variant: one ClickHouse, plain MergeTree, no Keeper. Same background-pool
+# shrink as the lagging replica, so the only difference from compose/replicated.yml is replication.
+name: ${COMPOSE_PROJECT_NAME:-par73single}
+services:
+  ch:
+    image: clickhouse/clickhouse-server:25.8.33.6
+    environment: {CLICKHOUSE_SKIP_USER_SETUP: "1"}
+    ulimits: {nofile: {soft: 262144, hard: 262144}}
+    ports: ["127.0.0.1:${CH_PORT:-38123}:8123"]
+    volumes:
+      - ../config/lagging.xml:/etc/clickhouse-server/config.d/lagging.xml:ro
+      - ch:/var/lib/clickhouse
+    healthcheck: {test: ["CMD", "clickhouse-client", "-q", "SELECT 1"], interval: 2s, timeout: 5s, retries: 60}
+volumes: {ch: {}}

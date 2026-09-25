@@ -1,0 +1,15 @@
+<!-- ch2, the "writer replica" that lags. Its background pool (merges AND mutations) is shrunk to 2
+     threads, so under continuous inserts the index-drop mutation queues behind merges for slots:
+     the busy-replica condition the incident describes. This is the rehearsal's one induced
+     condition; the README says so, and scenario.yml records it with every run. The two merge_tree
+     thresholds are lowered because ClickHouse refuses a table whose "free entries" thresholds exceed
+     the pool; 0 means mutations are not held back for free slots beyond the pool itself. -->
+<clickhouse>
+    <background_pool_size>2</background_pool_size>
+    <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
+    <merge_tree>
+        <number_of_free_entries_in_pool_to_execute_mutation>0</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>0</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>0</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+    </merge_tree>
+</clickhouse>
