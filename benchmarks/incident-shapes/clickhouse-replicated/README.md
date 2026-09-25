@@ -95,12 +95,14 @@ The box's numbers replace these once it has run. They go in `RESULTS.md` beside 
   another replica, or `input_format_skip_unknown_fields` inserts would lose more or less, or lose
   silently. (Without the column list, JSONEachRow drops the unknown field and the insert
   "succeeds".)
-- **Not through paraglobe's Migration Check harness.** `ops/migration-check.sh` and the PR check
-  speak Postgres (psql, `pg_locks`, table snapshots) and fork a CI baseline VM. This world is
-  neither Postgres nor onboarded as a VM world, so `rehearse.py` runs the Migration Check's phases
-  itself on Docker Compose on the host: naive and safe forms, a sampler, the matrix cells, a round
-  trip, a verdict. Running ClickHouse migrations through the real harness is a separate piece of
-  work.
+- **Not through paraglobe's Migration Check harness: a one-off rig.** `ops/migration-check.sh`
+  and the PR check speak Postgres (psql, `pg_locks`, table snapshots) and fork a CI baseline VM.
+  This world is neither Postgres nor onboarded as a VM world, so `rehearse.py` runs the Migration
+  Check's phases itself on Docker Compose on the host: naive and safe forms, a sampler, the
+  matrix cells, a round trip, a verdict. Its verdict is this rig's, not Paraglobe's. The measuring
+  it does moves into the engine under PAR-79 (a Migration Check for ClickHouse), and this rig is
+  not to be grown in the meantime. PAR-76's rehearsal (`../cascade-delete/`), a Postgres world, is
+  the other kind: an adapter only, judged by the real Check.
 - **The quiesce check is not a Firecracker snapshot.** It runs the guest's own `quiesce` and `thaw`
   (shimmed to see only this check's containers, with `fsfreeze` a no-op). It pauses Keeper and both
   replicas together and copies their volumes, as fsfreeze plus a ZFS snapshot would capture them,

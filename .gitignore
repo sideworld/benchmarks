@@ -14,6 +14,7 @@ benchmarks/*/.token*
 # the captured index DDL a generator replays). Not secrets, but not evidence either.
 benchmarks/*/.core-*
 benchmarks/*/scale/.posts-indexes.sql
+benchmarks/incident-shapes/*/scale/.indexes.sql
 # PostHog adapter: the project id and the per-project ingestion tokens the core script minted
 benchmarks/*/.project
 benchmarks/*/.projects

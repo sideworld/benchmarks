@@ -1,0 +1,6 @@
+  statement 0.1 s; psql: DELETE 1
+  before api_functions 0/149 failed, p99 18 ms; billing_invoices 0/148 failed, p99 20 ms; dashboard_runs 0/148 failed, p99 13 ms; ingest_event 0/148 failed, p99 18 ms
+  during billing_invoices 0/1 failed, p99 4 ms; dashboard_runs 0/1 failed, p99 3 ms; ingest_event 0/1 failed, p99 8 ms
+  after  api_functions 0/200 failed, p99 15 ms; billing_invoices 0/200 failed, p99 18 ms; dashboard_runs 0/200 failed, p99 16 ms; ingest_event 0/200 failed, p99 17 ms
+  pgbouncer clients (active+waiting) before 17 peak during 8 (waiting 0); server connections active 0 of 20; Postgres backends waiting on a lock 0
+  executor, the change +/- a little: ok 6104, failed 0, retries 0, max in flight 5; {}

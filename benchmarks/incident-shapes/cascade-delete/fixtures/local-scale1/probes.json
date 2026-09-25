@@ -1,0 +1,4 @@
+[{"name":"api_functions","method":"GET","url":"http://127.0.0.1:18480/functions","headers":{}},
+ {"name":"billing_invoices","method":"GET","url":"http://127.0.0.1:18481/invoices","headers":{}},
+ {"name":"dashboard_runs","method":"GET","url":"http://127.0.0.1:18482/runs","headers":{}},
+ {"name":"ingest_event","method":"POST","url":"http://127.0.0.1:18483/events","headers":{"Content-Type":"application/json"},"body":"{\"name\":\"probe\"}"}]
