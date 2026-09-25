@@ -1,0 +1,6 @@
+  statement 30.1 s; psql: psql:<stdin>:97: NOTICE:  purged account 1: 6391340 rows directly, 668 batches of up to 2000 | CALL
+  before api_functions 0/129 failed, p99 20 ms; billing_invoices 0/129 failed, p99 43 ms; dashboard_runs 0/128 failed, p99 17 ms; ingest_event 0/128 failed, p99 18 ms
+  during api_functions 0/151 failed, p99 12 ms; billing_invoices 0/150 failed, p99 20 ms; dashboard_runs 0/151 failed, p99 12 ms; ingest_event 0/151 failed, p99 27 ms
+  after  api_functions 0/200 failed, p99 17 ms; billing_invoices 0/200 failed, p99 31 ms; dashboard_runs 0/200 failed, p99 15 ms; ingest_event 0/200 failed, p99 22 ms
+  pgbouncer clients (active+waiting) before 32 peak during 17 (waiting 0); server connections active 9 of 20; Postgres backends waiting on a lock 1
+  executor, the change +/- a little: ok 10467, failed 5, retries 0, max in flight 3; {'fk_violation': 5}

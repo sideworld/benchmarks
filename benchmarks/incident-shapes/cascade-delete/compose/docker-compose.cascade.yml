@@ -1,0 +1,118 @@
+# PAR-76's world: Postgres 16, PgBouncer in transaction mode in front of it, four unrelated HTTP
+# services and the executor, all through the one PgBouncer. Self-contained on purpose (no
+# `extends:`, no bind mounts but the database's dataset): the rootfs builder copies compose files
+# into the guest by basename and bind sources only from under APP_DIR, so anything else would be
+# missing inside the microVM (benchmarks/mattermost/compose/docker-compose.mm.yml, the same lesson).
+#
+# The numbers that make the shape, all here so they are read in one place:
+#   Postgres   max_connections 100
+#   PgBouncer  pool_mode transaction, default_pool_size 20 server connections for the one
+#              (database, user) pair every service and the executor use, max_client_conn 1000,
+#              query_wait_timeout 20 s (a client queued longer than that for a server
+#              connection is disconnected with "query_wait_timeout")
+#   services   10 client connections each, 10 s statement_timeout, 3 tries per request
+#   executor   150 runs/s arriving open loop, a client connection per run (at most 600 at once),
+#              30 s statement_timeout, 5 tries per run
+#
+# Ports: every service listens on 8080-8083 in its container. Natively they are published on
+# 127.0.0.1:18480-18483 (compose/cascade.env); in the guest on 0.0.0.0:8080-8083 (compose/vm.env),
+# which the fork forwards to 3<kk>80, 90, 70 and 60.
+x-app: &app
+  image: "sideworld/cascade-app:v1"       # build-image.sh; a pull request's build is retagged to it
+  restart: always
+  depends_on: {pgbouncer: {condition: service_healthy}}
+  networks: [cascade]
+x-svc-health: &svc-health
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+  interval: 3s
+  timeout: 5s
+  retries: 40
+
+services:
+  db:
+    container_name: cascade-db
+    image: "postgres:16.4"
+    restart: always
+    shm_size: 1gb
+    networks: [cascade]
+    environment:
+      POSTGRES_USER: cascade
+      POSTGRES_PASSWORD: cascade
+      POSTGRES_DB: cascade
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=1GB
+      -c effective_cache_size=4GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=512MB
+      -c max_wal_size=8GB
+      -c checkpoint_completion_target=0.9
+      -c wal_compression=on
+      -c random_page_cost=1.1
+      -c log_lock_waits=on
+      -c deadlock_timeout=1s
+    volumes:
+      - "${CASCADE_PG_DATA:-/tank/cascade-pg}:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-U", "cascade"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  pgbouncer:
+    container_name: cascade-pgbouncer
+    image: "edoburu/pgbouncer:v1.24.1-p1"
+    restart: always
+    networks: [cascade]
+    depends_on: {db: {condition: service_healthy}}
+    environment:
+      DB_HOST: db
+      DB_NAME: cascade
+      DB_USER: cascade
+      DB_PASSWORD: cascade
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: "20"
+      MAX_CLIENT_CONN: "1000"
+      QUERY_WAIT_TIMEOUT: "20"
+      ADMIN_USERS: cascade
+      STATS_USERS: cascade
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=cascade psql -h 127.0.0.1 -U cascade -d cascade -Atc 'select 1' >/dev/null"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  api:
+    <<: *app
+    container_name: cascade-api
+    environment: {ROLE: api, PORT: "8080", POOL: "10", DATABASE_URL: "postgresql://cascade:cascade@pgbouncer:5432/cascade"}
+    ports: ["${CASCADE_BIND:-127.0.0.1}:${API_PORT:-18480}:8080"]
+    healthcheck: *svc-health
+  billing:
+    <<: *app
+    container_name: cascade-billing
+    environment: {ROLE: billing, PORT: "8080", POOL: "10", DATABASE_URL: "postgresql://cascade:cascade@pgbouncer:5432/cascade"}
+    ports: ["${CASCADE_BIND:-127.0.0.1}:${BILLING_PORT:-18481}:8080"]
+    healthcheck: *svc-health
+  dashboard:
+    <<: *app
+    container_name: cascade-dashboard
+    environment: {ROLE: dashboard, PORT: "8080", POOL: "10", DATABASE_URL: "postgresql://cascade:cascade@pgbouncer:5432/cascade"}
+    ports: ["${CASCADE_BIND:-127.0.0.1}:${DASHBOARD_PORT:-18482}:8080"]
+    healthcheck: *svc-health
+  ingest:
+    <<: *app
+    container_name: cascade-ingest
+    environment: {ROLE: ingest, PORT: "8080", POOL: "10", DATABASE_URL: "postgresql://cascade:cascade@pgbouncer:5432/cascade"}
+    ports: ["${CASCADE_BIND:-127.0.0.1}:${INGEST_PORT:-18483}:8080"]
+    healthcheck: *svc-health
+  executor:
+    <<: *app
+    container_name: cascade-executor
+    environment: {ROLE: executor, RATE: "150", MAX_INFLIGHT: "600", ATTEMPTS: "5", DATABASE_URL: "postgresql://cascade:cascade@pgbouncer:5432/cascade"}
+
+networks:
+  cascade:
+    driver: bridge

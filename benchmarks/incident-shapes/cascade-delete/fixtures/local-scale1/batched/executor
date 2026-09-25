@@ -1,0 +1,18 @@
+{"role": "executor", "rate": 150.0, "max_inflight": 600, "attempts": 5}
+{"t": 1790379819.4, "role": "executor", "ok": 1470, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.4, "p99_ms": 44.1, "inflight": 0}
+{"t": 1790379829.4, "role": "executor", "ok": 1459, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.2, "p99_ms": 52.8, "inflight": 0}
+{"t": 1790379839.4, "role": "executor", "ok": 1484, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.1, "p99_ms": 44.9, "inflight": 3}
+{"t": 1790379849.4, "role": "executor", "ok": 1496, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.9, "p99_ms": 187.1, "inflight": 0}
+{"t": 1790379859.4, "role": "executor", "ok": 1525, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 14.4, "p99_ms": 192.0, "inflight": 2}
+{"t": 1790379869.4, "role": "executor", "ok": 1523, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.4, "p99_ms": 51.9, "inflight": 2}
+{"t": 1790379879.4, "role": "executor", "ok": 1592, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.6, "p99_ms": 59.7, "inflight": 0}
+{"t": 1790379889.4, "role": "executor", "ok": 1533, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.4, "p99_ms": 54.9, "inflight": 3}
+{"t": 1790379899.4, "role": "executor", "ok": 1509, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.5, "p99_ms": 45.7, "inflight": 0}
+{"t": 1790379909.4, "role": "executor", "ok": 1467, "failed": 5, "retries": 0, "errors": {"fk_violation": 5}, "p50_ms": 11.1, "p99_ms": 50.3, "inflight": 0}
+{"t": 1790379919.4, "role": "executor", "ok": 1463, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 12.7, "p99_ms": 145.6, "inflight": 1}
+{"t": 1790379929.4, "role": "executor", "ok": 1489, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.6, "p99_ms": 54.0, "inflight": 0}
+{"t": 1790379939.4, "role": "executor", "ok": 1414, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 9.5, "p99_ms": 47.2, "inflight": 2}
+{"t": 1790379949.4, "role": "executor", "ok": 1592, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.4, "p99_ms": 64.6, "inflight": 3}
+{"t": 1790379959.4, "role": "executor", "ok": 1568, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.5, "p99_ms": 48.9, "inflight": 1}
+{"t": 1790379969.4, "role": "executor", "ok": 1464, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.1, "p99_ms": 42.6, "inflight": 7}
+{"t": 1790379979.4, "role": "executor", "ok": 1514, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.5, "p99_ms": 68.5, "inflight": 2}

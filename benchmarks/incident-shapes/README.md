@@ -10,4 +10,5 @@ induced to reproduce it, and what it does not claim about the company whose writ
 
 | rehearsal | shape | issue |
 |---|---|---|
-| [`clickhouse-replicated/`](clickhouse-replicated/) | replicated ClickHouse: an index-drop mutation, then an added column, then a new writer; the runner says done while a replica lags and the writer's batches are dropped | PAR-73 |
+| [`clickhouse-replicated/`](clickhouse-replicated/) | replicated ClickHouse: an index-drop mutation, then an added column, then a new writer; the runner says done while a replica lags and the writer's batches are dropped. A one-off rig that runs the Check's phases itself (the Check speaks only Postgres; PAR-79) | PAR-73 |
+| [`cascade-delete/`](cascade-delete/) ([write-up](cascade-delete.md)) | Postgres behind PgBouncer: an account hard-deleted through a 25-table `ON DELETE CASCADE` graph while a retrying executor keeps writing to it; its jobs pile up behind the locks, take every pooled connection, and four unrelated services queue behind them. An onboarded paraglobe world: each change is a pull request judged by the real Migration Check | PAR-76 |

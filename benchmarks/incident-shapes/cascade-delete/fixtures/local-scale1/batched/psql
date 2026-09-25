@@ -1,0 +1,12 @@
+Timing is on.
+CREATE FUNCTION
+Time: 3.402 ms
+CREATE PROCEDURE
+Time: 0.523 ms
+psql:<stdin>:97: NOTICE:  purged account 1: 6391340 rows directly, 668 batches of up to 2000
+CALL
+Time: 30042.660 ms (00:30.043)
+DROP PROCEDURE
+Time: 2.390 ms
+DROP FUNCTION
+Time: 0.263 ms

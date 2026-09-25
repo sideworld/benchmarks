@@ -1,0 +1,15 @@
+{"role": "executor", "rate": 150.0, "max_inflight": 600, "attempts": 5}
+{"t": 1790379240.7, "role": "executor", "ok": 1470, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.7, "p99_ms": 50.6, "inflight": 0}
+{"t": 1790379250.7, "role": "executor", "ok": 1459, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.6, "p99_ms": 53.6, "inflight": 0}
+{"t": 1790379260.7, "role": "executor", "ok": 1484, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.2, "p99_ms": 53.0, "inflight": 1}
+{"t": 1790379270.7, "role": "executor", "ok": 1496, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.1, "p99_ms": 51.8, "inflight": 0}
+{"t": 1790379280.7, "role": "executor", "ok": 1525, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.2, "p99_ms": 53.8, "inflight": 2}
+{"t": 1790379290.7, "role": "executor", "ok": 1523, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.1, "p99_ms": 48.7, "inflight": 2}
+{"t": 1790379300.7, "role": "executor", "ok": 1592, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 11.1, "p99_ms": 50.3, "inflight": 0}
+{"t": 1790379310.7, "role": "executor", "ok": 1530, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.4, "p99_ms": 45.1, "inflight": 5}
+{"t": 1790379320.7, "role": "executor", "ok": 1509, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.2, "p99_ms": 80.3, "inflight": 0}
+{"t": 1790379330.7, "role": "executor", "ok": 1473, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.0, "p99_ms": 49.3, "inflight": 1}
+{"t": 1790379340.7, "role": "executor", "ok": 1461, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.3, "p99_ms": 43.1, "inflight": 4}
+{"t": 1790379350.7, "role": "executor", "ok": 1490, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.0, "p99_ms": 63.8, "inflight": 0}
+{"t": 1790379360.7, "role": "executor", "ok": 1414, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 8.9, "p99_ms": 42.8, "inflight": 0}
+{"t": 1790379370.7, "role": "executor", "ok": 1595, "failed": 0, "retries": 0, "errors": {}, "p50_ms": 10.4, "p99_ms": 58.7, "inflight": 0}
