@@ -73,8 +73,11 @@ for r in "${runs[@]}"; do
   id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("run_id") or "")' "$OUT/$r.json" 2>/dev/null || true)
   if [ -n "$id" ] && [ -d "$RUNS/$id/mc" ]; then
     mkdir -p "$OUT/$r.check"
+    # naive-waits.txt and naive-pooler.txt are PAR-80's lanes (row-lock waits, and PgBouncer's
+    # queue from the Check's own sampler); migrations.json makes the directory a whole run to fold
     cp "$RUNS/$id"/mc/naive-samples.txt "$RUNS/$id"/mc/naive-locks.txt "$RUNS/$id"/mc/naive-load.jsonl \
        "$RUNS/$id"/mc/naive-statements.json "$RUNS/$id"/mc/naive-data-* "$RUNS/$id"/mc/naive-pglog.txt \
+       "$RUNS/$id"/mc/naive-waits.txt "$RUNS/$id"/mc/naive-pooler.txt "$RUNS/$id"/mc/migrations.json \
        "$RUNS/$id"/mc/workload.json "$OUT/$r.check/" 2>/dev/null || true
   else
     log "  $r: no run directory for '${id:-?}' under $RUNS; the Check's samples were not copied"

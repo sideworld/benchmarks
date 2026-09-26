@@ -30,7 +30,9 @@ The box adds `<change>.check/`, the Check's own files from the run's `mc/` direc
 - `naive-samples.txt` (0.2 s);
 - `naive-locks.txt` (every lock on the touched tables, by backend);
 - `naive-load.jsonl`, `naive-statements.json`, `naive-data-*`, `naive-pglog.txt`;
-- `workload.json`.
+- `naive-waits.txt` (every lock waited for, with `pg_blocking_pids`) and `naive-pooler.txt`
+  (PgBouncer's `SHOW POOLS` every 0.2 s from the Check's own sampler): PAR-80's two lanes;
+- `migrations.json` and `workload.json`, so the directory folds as a whole run.
 
 It also adds `<change>.pgbouncer`, in the format above, sampled from inside the fork.
 
