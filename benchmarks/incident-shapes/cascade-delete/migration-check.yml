@@ -3,8 +3,11 @@
 # rehearse.sh); this file is the workload it is replayed under, and how the Check reaches the
 # database. The four probes are the four UNRELATED services, one probe each, so the Check's
 # per-probe table is the per-service table: none of them reads or writes the accounts the changes
-# delete (1 and 15000). The traffic that does touch those accounts is the executor inside the
-# world, which the Check does not drive: it runs in every fork, as it ran in the baseline.
+# delete (1 and 15000). All four go through the world's gateway on the one forwarded port, $PORT,
+# the only port the Check substitutes (PAR-83: three of them once named ports through ${CI_KK},
+# which it never substitutes, and failed every request). The traffic that does touch those
+# accounts is the executor inside the world, which the Check does not drive: it runs in every
+# fork, as it ran in the baseline.
 label: "cascade: hard-delete an account through ON DELETE CASCADE, under the services' and the executor's traffic"
 table: accounts
 # Straight to Postgres, not through PgBouncer: the Check's own statements and samples must not
@@ -15,14 +18,14 @@ rps: 20
 drain_probe: api_functions
 probes:
   - name: api_functions
-    url: http://127.0.0.1:${PORT}/functions
+    url: http://127.0.0.1:${PORT}/api/functions
   - name: billing_invoices
-    url: http://127.0.0.1:3${CI_KK}90/invoices
+    url: http://127.0.0.1:${PORT}/billing/invoices
   - name: dashboard_runs
-    url: http://127.0.0.1:3${CI_KK}70/runs
+    url: http://127.0.0.1:${PORT}/dashboard/runs
   - name: ingest_event
     method: POST
-    url: http://127.0.0.1:3${CI_KK}60/events
+    url: http://127.0.0.1:${PORT}/ingest/events
     headers: {Content-Type: application/json}
     body: '{"name":"migration-check.probe"}'
 explain:

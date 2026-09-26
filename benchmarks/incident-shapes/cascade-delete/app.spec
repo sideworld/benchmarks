@@ -6,14 +6,14 @@
 # rehearsal is a pull request against that checkout (rehearse.sh), as for any world.
 APP=cascade
 APP_REPO=https://github.com/sideworld/benchmarks.git
-APP_TAG=cascade-delete-v1
+APP_TAG=cascade-delete-v2          # v2: the gateway (PAR-83)
 APP_DIR=/tank/work/cascade
 PROJECT=cascade
 SPEC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 COMPOSE_FILES="$SPEC_DIR/compose/docker-compose.cascade.yml"
 ENV_FILE=$SPEC_DIR/compose/cascade.env
-VM_ENV_FILE=$SPEC_DIR/compose/vm.env      # guest only: the services on 0.0.0.0:8080-8083
+VM_ENV_FILE=$SPEC_DIR/compose/vm.env      # guest only: the gateway on 0.0.0.0:8080
 
 # The one store. PgBouncer keeps nothing; the services and the executor are stateless.
 DATASETS="db:/var/lib/postgresql/data:tank/cascade-pg:999"
@@ -27,6 +27,6 @@ GEN_ARGS="2 20000"                        # scale 2: ~52M rows, account 1 ~12.7M
 SNAPSHOT_NAME=cascade-base
 ZVOL_SIZE=64G
 SIZE_MB=6144                              # rootfs: postgres, pgbouncer, python images, well under 1 GB
-# the microVM
-GUEST_HTTP=8080 HEALTH_PATH=/healthz GUEST_PORTS="8080 8081 8082 8083" MEM_MIB=8192 VCPUS=4 READY_WAIT=900
+# the microVM; 8080 is the gateway, the one port a fork forwards (PAR-83), and /healthz is its own
+GUEST_HTTP=8080 HEALTH_PATH=/healthz GUEST_PORTS="8080" MEM_MIB=8192 VCPUS=4 READY_WAIT=900
 APP_UNIT=app.service APP_DIR_GUEST=/opt/app

@@ -88,7 +88,7 @@ twice the rows to cascade through.
 | file | what |
 |---|---|
 | `app.spec` | the world, for `vm/onboard-generic.sh`: repository and tag, compose, datasets, hooks, generator (`GEN_ARGS="2 20000"`), guest |
-| `compose/` | `docker-compose.cascade.yml` (everything inline; only the database's dataset is mounted), `cascade.env` (host ports 18480–18483), `vm.env` (guest ports 8080–8083) |
+| `compose/` | `docker-compose.cascade.yml` (everything inline; only the database's dataset is mounted), with an nginx gateway routing `/api`, `/billing`, `/dashboard` and `/ingest` to the four services; `cascade.env` (host: services 18480–18483, gateway 18484), `vm.env` (guest: the gateway on 8080, the one port a fork forwards) |
 | `app/` | the one image: `cascade_app.py` (the four services and the executor, `ROLE` picks) and its Dockerfile |
 | `migrations/0001_schema.sql` | the schema, applied once by `init-app.sh`; a pull request's `0002_*.sql` is the change |
 | `changes/` | the three changes, each opened as a pull request by `rehearse.sh` |
@@ -108,3 +108,11 @@ The box's exact steps are on PAR-76. In short:
 2. `vm/onboard-generic.sh <this dir>/app.spec`.
 3. `ops/ci-baseline.sh cascade`.
 4. `./rehearse.sh`.
+
+**v2, the gateway (PAR-83).** Up to `cascade-delete-v1`, the fork forwarded four guest ports and
+three probes named theirs through `${CI_KK}`, which the Migration Check never substitutes: PAR-76's
+first run judged one probe of four. From `cascade-delete-v2` the world has one front door, and
+every probe is `http://127.0.0.1:${PORT}/<service>/…`. The guest's ports are part of the snapshot,
+so an existing cascade world must be **re-onboarded**: merge this and paraglobe's matching
+`ops/ci/cascade.yml` (`pinned: cascade-delete-v2`, `guest.ports: "8080"`), tag this repository
+`cascade-delete-v2`, then steps 2 and 3 again.

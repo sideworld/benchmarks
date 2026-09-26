@@ -236,23 +236,48 @@ class TheWorld(unittest.TestCase):
         for name, svc in self.compose["services"].items():
             for v in svc.get("volumes", []):
                 self.assertEqual(name, "db", f"{name} mounts {v}: the guest would not have it")
-        self.assertEqual({s.get("image") for n, s in self.compose["services"].items() if n not in ("db", "pgbouncer")},
+        self.assertEqual({s.get("image") for n, s in self.compose["services"].items() if n not in ("db", "pgbouncer", "gateway")},
                          {"sideworld/cascade-app:v1"})
         self.assertIn("IMG=sideworld/cascade-app:v1", read("build-image.sh"))
 
     def test_the_guest_ports_line_up_with_the_probes(self):
         vm, host = self.env("vm.env"), self.env("cascade.env")
-        ports = self.spec["GUEST_PORTS"].split()
-        self.assertEqual(ports, [vm[k] for k in ("API_PORT", "BILLING_PORT", "DASHBOARD_PORT", "INGEST_PORT")])
+        # PAR-83: one forwarded port, the gateway's, and it is $PORT to the Check
+        self.assertEqual(self.spec["GUEST_PORTS"].split(), [vm["GATEWAY_PORT"]])
+        self.assertEqual(self.spec["GUEST_HTTP"], vm["GATEWAY_PORT"])
+        # a comment on the guest line would end it there, as bash reads it, and drop the rest
+        self.assertEqual([self.spec.get(k) for k in ("MEM_MIB", "VCPUS", "READY_WAIT")], ["8192", "4", "900"])
         self.assertEqual(vm["CASCADE_BIND"], "0.0.0.0")
         self.assertEqual(host["CASCADE_BIND"], "127.0.0.1")
-        # the fork forwards the guest ports, in order, to 3<kk>80, 90, 70, 60
+        self.assertEqual({k: v for k, v in vm.items() if k not in ("CASCADE_BIND", "GATEWAY_PORT")},
+                         {k: v for k, v in host.items() if k not in ("CASCADE_BIND", "GATEWAY_PORT")})
+        gw = self.compose["services"]["gateway"]
+        self.assertEqual(gw["ports"], ["${CASCADE_BIND:-127.0.0.1}:${GATEWAY_PORT:-18484}:8080"])
         urls = {p["name"]: p["url"] for p in self.adapter["probes"]}
-        self.assertEqual(urls["api_functions"], "http://127.0.0.1:${PORT}/functions")
-        self.assertIn(":3${CI_KK}90/invoices", urls["billing_invoices"])
-        self.assertIn(":3${CI_KK}70/runs", urls["dashboard_runs"])
-        self.assertIn(":3${CI_KK}60/events", urls["ingest_event"])
+        self.assertEqual(urls, {"api_functions": "http://127.0.0.1:${PORT}/api/functions",
+                                "billing_invoices": "http://127.0.0.1:${PORT}/billing/invoices",
+                                "dashboard_runs": "http://127.0.0.1:${PORT}/dashboard/runs",
+                                "ingest_event": "http://127.0.0.1:${PORT}/ingest/events"})
         self.assertIn(self.adapter["drain_probe"], urls)
+
+    def test_only_documented_variables_in_the_probes(self):
+        # the Check substitutes $PORT, $PID and $TOKEN*; paraglobe's load generator refuses anything
+        # else left in a URL or header (PAR-83), so the adapter must never need it
+        for p in self.adapter["probes"]:
+            for text in [p["url"], *map(str, (p.get("headers") or {}).values())]:
+                for var in re.findall(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)", text):
+                    self.assertTrue(var in ("PORT", "PID") or var.startswith("TOKEN"), f"{p['name']}: ${var} in {text!r}")
+
+    def test_the_gateway_routes_every_service_by_its_prefix(self):
+        gw = self.compose["services"]["gateway"]
+        conf = gw["environment"]["NGINX_CONF"]
+        for svc in ("api", "billing", "dashboard", "ingest"):
+            self.assertIn(f"location /{svc}/ {{ set $$u {svc}; rewrite ^/{svc}(/.*)$$ $$1 break; proxy_pass http://$$u:8080; }}", conf)
+            self.assertEqual(gw["depends_on"][svc], {"condition": "service_healthy"})
+            self.assertEqual(self.compose["services"][svc]["environment"]["PORT"], "8080")
+        self.assertIn("resolver 127.0.0.11", conf)
+        self.assertIn("proxy_read_timeout 120s", conf)
+        self.assertIn("$$NGINX_CONF", " ".join(gw["command"]))
 
     def test_the_check_reaches_postgres_directly(self):
         self.assertIn("cascade-db psql", self.adapter["db_exec"])
